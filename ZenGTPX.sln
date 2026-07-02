@@ -1,0 +1,34 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{2FA3A072-8195-41A0-9BB6-FA8AF4855419}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ZenGTPX", "src\ZenGTPX\ZenGTPX.csproj", "{C7D5BFB6-FCAF-4033-837C-3FD67AB25780}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ZenGTPX.Tests", "src\ZenGTPX.Tests\ZenGTPX.Tests.csproj", "{D478CC5A-C8BC-4140-9956-933933D5F324}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{C7D5BFB6-FCAF-4033-837C-3FD67AB25780}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{C7D5BFB6-FCAF-4033-837C-3FD67AB25780}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{C7D5BFB6-FCAF-4033-837C-3FD67AB25780}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{C7D5BFB6-FCAF-4033-837C-3FD67AB25780}.Release|Any CPU.Build.0 = Release|Any CPU
+		{D478CC5A-C8BC-4140-9956-933933D5F324}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{D478CC5A-C8BC-4140-9956-933933D5F324}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{D478CC5A-C8BC-4140-9956-933933D5F324}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{D478CC5A-C8BC-4140-9956-933933D5F324}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{C7D5BFB6-FCAF-4033-837C-3FD67AB25780} = {2FA3A072-8195-41A0-9BB6-FA8AF4855419}
+		{D478CC5A-C8BC-4140-9956-933933D5F324} = {2FA3A072-8195-41A0-9BB6-FA8AF4855419}
+	EndGlobalSection
+EndGlobal

@@ -1,0 +1,11 @@
+{
+  "sdk": {
+    "version": "8.0.422",
+    "rollForward": "latestFeature",
+    "paths": [
+      "C:\\Users\\kenming\\scoop\\apps\\dotnet8-sdk\\current",
+      "$host$"
+    ],
+    "errorMessage": "Required .NET SDK 8.0.422 was not found. Install it with: scoop install versions/dotnet8-sdk"
+  }
+}

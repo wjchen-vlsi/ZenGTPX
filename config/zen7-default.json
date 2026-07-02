@@ -1,0 +1,13 @@
+{
+  "zenDll": "Zen.dll",
+  "boardSize": 19,
+  "komi": 7.5,
+  "handicap": 0,
+  "threads": 1,
+  "maxTimeSeconds": 1.0,
+  "maxSimulations": 100,
+  "resignThreshold": 0.1,
+  "pnLevel": 2,
+  "pnWeight": 1.0,
+  "vnMixRate": 0.55
+}

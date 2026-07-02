@@ -1,0 +1,17 @@
+# Build output
+bin/
+obj/
+dist/
+artifacts/
+
+# User-local files
+*.user
+*.suo
+*.rsuser
+
+# Proprietary native dependency
+Zen.dll
+**/Zen.dll
+
+# Logs
+*.log

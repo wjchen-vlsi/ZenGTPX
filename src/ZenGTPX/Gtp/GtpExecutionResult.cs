@@ -1,0 +1,3 @@
+namespace ZenGTPX.Gtp;
+
+public sealed record GtpExecutionResult(GtpResponse Response, bool ShouldQuit);
