@@ -15,3 +15,6 @@ Zen.dll
 
 # Logs
 *.log
+
+# Local match outputs belong in ZenGTPX.Dev
+matches/

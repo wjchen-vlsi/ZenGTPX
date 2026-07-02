@@ -49,7 +49,7 @@ public sealed class BoardState
             throw new InvalidOperationException($"Board state already has a stone at {GtpVertex.Format(coordinate, BoardSize)}.");
         }
 
-        _stones[coordinate.X, coordinate.Y] = color;
+        PlaceStone(color, coordinate);
         _moves.Add(new MoveRecord(color, coordinate));
     }
 
@@ -119,9 +119,114 @@ public sealed class BoardState
         {
             if (move.Coordinate is { } coordinate)
             {
-                _stones[coordinate.X, coordinate.Y] = move.Color;
+                PlaceStone(move.Color, coordinate);
             }
         }
+    }
+
+    private void PlaceStone(StoneColor color, BoardCoordinate coordinate)
+    {
+        _stones[coordinate.X, coordinate.Y] = color;
+        foreach (var neighbor in Neighbors(coordinate))
+        {
+            if (_stones[neighbor.X, neighbor.Y] == Opposite(color))
+            {
+                var group = CollectGroup(neighbor);
+                if (!HasLiberty(group))
+                {
+                    RemoveGroup(group);
+                }
+            }
+        }
+
+        var ownGroup = CollectGroup(coordinate);
+        if (!HasLiberty(ownGroup))
+        {
+            throw new InvalidOperationException($"Move has no liberties at {GtpVertex.Format(coordinate, BoardSize)}.");
+        }
+    }
+
+    private List<BoardCoordinate> CollectGroup(BoardCoordinate start)
+    {
+        var color = _stones[start.X, start.Y];
+        if (color is null)
+        {
+            return [];
+        }
+
+        var group = new List<BoardCoordinate>();
+        var seen = new bool[BoardSize, BoardSize];
+        var stack = new Stack<BoardCoordinate>();
+        stack.Push(start);
+        seen[start.X, start.Y] = true;
+
+        while (stack.Count > 0)
+        {
+            var current = stack.Pop();
+            group.Add(current);
+            foreach (var neighbor in Neighbors(current))
+            {
+                if (!seen[neighbor.X, neighbor.Y] && _stones[neighbor.X, neighbor.Y] == color)
+                {
+                    seen[neighbor.X, neighbor.Y] = true;
+                    stack.Push(neighbor);
+                }
+            }
+        }
+
+        return group;
+    }
+
+    private bool HasLiberty(IEnumerable<BoardCoordinate> group)
+    {
+        foreach (var stone in group)
+        {
+            foreach (var neighbor in Neighbors(stone))
+            {
+                if (_stones[neighbor.X, neighbor.Y] is null)
+                {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    private void RemoveGroup(IEnumerable<BoardCoordinate> group)
+    {
+        foreach (var stone in group)
+        {
+            _stones[stone.X, stone.Y] = null;
+        }
+    }
+
+    private IEnumerable<BoardCoordinate> Neighbors(BoardCoordinate coordinate)
+    {
+        if (coordinate.X > 0)
+        {
+            yield return new BoardCoordinate(coordinate.X - 1, coordinate.Y);
+        }
+
+        if (coordinate.X + 1 < BoardSize)
+        {
+            yield return new BoardCoordinate(coordinate.X + 1, coordinate.Y);
+        }
+
+        if (coordinate.Y > 0)
+        {
+            yield return new BoardCoordinate(coordinate.X, coordinate.Y - 1);
+        }
+
+        if (coordinate.Y + 1 < BoardSize)
+        {
+            yield return new BoardCoordinate(coordinate.X, coordinate.Y + 1);
+        }
+    }
+
+    private static StoneColor Opposite(StoneColor color)
+    {
+        return color == StoneColor.Black ? StoneColor.White : StoneColor.Black;
     }
 
     private void ValidateCoordinate(BoardCoordinate coordinate)

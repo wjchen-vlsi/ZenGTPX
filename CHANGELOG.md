@@ -1,0 +1,20 @@
+# CHANGELOG
+
+## Unreleased
+
+### Added
+- Support `fixed_handicap` and `place_free_handicap` GTP commands with deterministic standard star-point placement.
+- Document the version history baseline for ZenGTPX.
+
+## 0.1.0
+
+### Added
+- Initial GTP session loop over stdin/stdout.
+- Basic GTP command support: `protocol_version`, `name`, `version`, `list_commands`, `known_command`, `boardsize`, `clear_board`, `komi`, `play`, `genmove`, `undo`, `time_settings`, `time_left`, `showboard`, `final_score`, and `quit`.
+- Configuration loading from defaults, `.cfg`, JSON, and CLI arguments.
+
+## Planned
+
+### 0.3.0
+- Minimal Lizzie-compatible `lz-analyze` support for candidate move display.
+- `stop` command support for interrupting active analysis.

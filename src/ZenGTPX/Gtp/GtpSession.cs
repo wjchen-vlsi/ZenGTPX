@@ -18,6 +18,8 @@ public sealed class GtpSession
         "play",
         "genmove",
         "undo",
+        "fixed_handicap",
+        "place_free_handicap",
         "time_settings",
         "time_left",
         "showboard",
@@ -52,6 +54,8 @@ public sealed class GtpSession
                 "play" => Play(command),
                 "genmove" => GenMove(command),
                 "undo" => Undo(command),
+                "fixed_handicap" => Handicap(command),
+                "place_free_handicap" => Handicap(command),
                 "time_settings" => TimeSettings(command),
                 "time_left" => TimeLeft(command),
                 "showboard" => ShowBoard(command),
@@ -171,6 +175,36 @@ public sealed class GtpSession
         return Success(command, "");
     }
 
+    private GtpExecutionResult Handicap(GtpCommand command)
+    {
+        if (command.Arguments.Count != 1)
+        {
+            return Error(command, $"{command.Name} requires one argument");
+        }
+
+        var count = int.Parse(command.Arguments[0], CultureInfo.InvariantCulture);
+        var coordinates = FixedHandicapCoordinates(_engine.BoardSize, count);
+
+        foreach (var coordinate in coordinates)
+        {
+            var move = GtpMove.Play(coordinate);
+            if (!_engine.Play(StoneColor.Black, move))
+            {
+                return Error(
+                    command,
+                    $"illegal handicap stone at {GtpVertex.Format(coordinate, _engine.BoardSize)}");
+            }
+
+            _board.Play(StoneColor.Black, move);
+        }
+
+        return Success(
+            command,
+            string.Join(
+                ' ',
+                coordinates.Select(coordinate => GtpVertex.Format(coordinate, _engine.BoardSize))));
+    }
+
     private GtpExecutionResult TimeSettings(GtpCommand command)
     {
         if (command.Arguments.Count != 3)
@@ -239,6 +273,49 @@ public sealed class GtpSession
             "b" or "black" => StoneColor.Black,
             "w" or "white" => StoneColor.White,
             _ => throw new FormatException($"Invalid color: {value}"),
+        };
+    }
+
+    private static IReadOnlyList<BoardCoordinate> FixedHandicapCoordinates(int boardSize, int count)
+    {
+        if (count is < 2 or > 9)
+        {
+            throw new ArgumentOutOfRangeException(nameof(count), "Handicap count must be between 2 and 9.");
+        }
+
+        if (boardSize < 7 || boardSize % 2 == 0)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(boardSize),
+                "Handicap is supported only on odd board sizes 7 or larger.");
+        }
+
+        var starOffset = boardSize < 13 ? 2 : 3;
+        var low = starOffset;
+        var high = boardSize - 1 - starOffset;
+        var middle = boardSize / 2;
+
+        BoardCoordinate lowerLeft = new(low, high);
+        BoardCoordinate upperRight = new(high, low);
+        BoardCoordinate lowerRight = new(high, high);
+        BoardCoordinate upperLeft = new(low, low);
+        BoardCoordinate center = new(middle, middle);
+        BoardCoordinate left = new(low, middle);
+        BoardCoordinate right = new(high, middle);
+        BoardCoordinate lower = new(middle, high);
+        BoardCoordinate upper = new(middle, low);
+
+        return count switch
+        {
+            2 => [lowerLeft, upperRight],
+            3 => [lowerLeft, upperRight, lowerRight],
+            4 => [lowerLeft, upperRight, lowerRight, upperLeft],
+            5 => [lowerLeft, upperRight, lowerRight, upperLeft, center],
+            6 => [lowerLeft, upperRight, lowerRight, upperLeft, left, right],
+            7 => [lowerLeft, upperRight, lowerRight, upperLeft, left, right, center],
+            8 => [lowerLeft, upperRight, lowerRight, upperLeft, left, right, lower, upper],
+            9 => [lowerLeft, upperRight, lowerRight, upperLeft, left, right, lower, upper, center],
+            _ => throw new ArgumentOutOfRangeException(nameof(count), "Handicap count must be between 2 and 9."),
         };
     }
 

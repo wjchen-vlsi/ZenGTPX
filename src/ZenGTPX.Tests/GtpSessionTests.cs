@@ -48,6 +48,14 @@ public sealed class GtpSessionTests
     }
 
     [TestMethod]
+    public void Execute_KnownCommand_FixedHandicap()
+    {
+        var result = Execute("known_command fixed_handicap");
+
+        Assert.AreEqual("= true\n\n", result.Response.Format());
+    }
+
+    [TestMethod]
     public void Execute_KnownCommand_ShowBoard()
     {
         var result = Execute("known_command showboard");
@@ -82,6 +90,8 @@ public sealed class GtpSessionTests
                 "play",
                 "genmove",
                 "undo",
+                "fixed_handicap",
+                "place_free_handicap",
                 "time_settings",
                 "time_left",
                 "showboard",
@@ -231,6 +241,53 @@ public sealed class GtpSessionTests
     }
 
     [TestMethod]
+    public void Execute_FixedHandicap_PlacesStandardStones()
+    {
+        var engine = new FakeGtpEngine();
+        var result = Execute("fixed_handicap 4", engine);
+
+        Assert.AreEqual("= D4 Q16 Q4 D16\n\n", result.Response.Format());
+        CollectionAssert.AreEqual(
+            new[]
+            {
+                "Play:Black:D4",
+                "Play:Black:Q16",
+                "Play:Black:Q4",
+                "Play:Black:D16",
+            },
+            engine.Calls);
+    }
+
+    [TestMethod]
+    public void Execute_PlaceFreeHandicap_UsesDeterministicStandardPlacement()
+    {
+        var engine = new FakeGtpEngine();
+        var result = Execute("place_free_handicap 5", engine);
+
+        Assert.AreEqual("= D4 Q16 Q4 D16 K10\n\n", result.Response.Format());
+    }
+
+    [TestMethod]
+    public void Execute_FixedHandicap_UsesCurrentBoardSize()
+    {
+        var engine = new FakeGtpEngine();
+        var session = new GtpSession(engine);
+
+        Execute("boardsize 13", session);
+        var result = Execute("fixed_handicap 5", session);
+
+        Assert.AreEqual("= D4 K10 K4 D10 G7\n\n", result.Response.Format());
+    }
+
+    [TestMethod]
+    public void Execute_FixedHandicap_RejectsUnsupportedCount()
+    {
+        var result = Execute("fixed_handicap 1");
+
+        Assert.AreEqual("? Handicap count must be between 2 and 9. (Parameter 'count')\n\n", result.Response.Format());
+    }
+
+    [TestMethod]
     public void Execute_TimeSettings_UsesByoyomiAsMaxTime()
     {
         var engine = new FakeGtpEngine();
@@ -363,7 +420,12 @@ public sealed class GtpSessionTests
         {
             LastColor = color;
             LastMove = move;
-            _calls.Add($"Play:{color}:{move}");
+            var moveText = move.Coordinate is { } coordinate
+                ? GtpVertex.Format(coordinate, BoardSize)
+                : move.IsPass
+                    ? "pass"
+                    : "resign";
+            _calls.Add($"Play:{color}:{moveText}");
             return true;
         }
 

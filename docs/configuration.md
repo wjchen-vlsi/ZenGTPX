@@ -37,4 +37,17 @@ maxSimulations = 100
 resignThreshold = 0.1
 ```
 
-後續版本會補完整參數說明。
+`maxTimeSeconds = 1.0` 與 `maxSimulations = 100` 是啟動與協定測試用設定，不適合用來評估 Zen7 / 天頂圍棋棋力。
+
+若要進行實戰棋力測試，請參考 [Zen7 Strength Presets](zen7-strength-presets.md)。例如 9d 參數、30 秒上限：
+
+```cfg
+maxTimeSeconds = 30.0
+maxSimulations = 6000
+resignThreshold = 0.03
+pnLevel = 3
+pnWeight = 1.0
+vnMixRate = 0.75
+```
+
+後續版本會補完整參數說明與 `rankPreset` convenience field。
