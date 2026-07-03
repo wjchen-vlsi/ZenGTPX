@@ -1,6 +1,7 @@
 using ZenGTPX.Config;
 using ZenGTPX.Board;
 using ZenGTPX.Gtp;
+using System.Diagnostics;
 using System.Globalization;
 
 namespace ZenGTPX.Zen;
@@ -58,6 +59,8 @@ public sealed class ZenEngine : IGtpEngine, IDisposable
 
     public int BoardSize => _boardSize;
 
+    public GtpSearchInfo? LastSearchInfo { get; private set; }
+
     public void SetBoardSize(int boardSize)
     {
         if (boardSize <= 0 || boardSize > 25)
@@ -67,11 +70,13 @@ public sealed class ZenEngine : IGtpEngine, IDisposable
 
         _native.SetBoardSize(boardSize);
         _boardSize = boardSize;
+        LastSearchInfo = null;
     }
 
     public void ClearBoard()
     {
         _native.ClearBoard();
+        LastSearchInfo = null;
     }
 
     public void SetKomi(double komi)
@@ -129,6 +134,7 @@ public sealed class ZenEngine : IGtpEngine, IDisposable
 
     public bool Play(StoneColor color, GtpMove move)
     {
+        LastSearchInfo = null;
         var zenColor = (int)color;
         if (move.IsPass)
         {
@@ -148,23 +154,29 @@ public sealed class ZenEngine : IGtpEngine, IDisposable
     {
         var zenColor = (int)color;
         _native.SetNextColor(zenColor);
+        var stopwatch = Stopwatch.StartNew();
         var topMove = ThinkUntilTopMove(zenColor);
+        stopwatch.Stop();
 
         if (topMove.Playouts <= 0 || !IsOnBoard(topMove.X, topMove.Y))
         {
             _native.Pass(zenColor);
+            LastSearchInfo = new GtpSearchInfo(GtpMove.Pass, topMove.Playouts, topMove.Winrate, stopwatch.Elapsed.TotalSeconds);
             return GtpMove.Pass;
         }
 
         if (topMove.Winrate < _options.ResignThreshold)
         {
+            LastSearchInfo = new GtpSearchInfo(GtpMove.Resign, topMove.Playouts, topMove.Winrate, stopwatch.Elapsed.TotalSeconds);
             return GtpMove.Resign;
         }
 
         var coordinate = new BoardCoordinate(topMove.X, topMove.Y);
-        return _native.Play(coordinate.X, coordinate.Y, zenColor)
+        var move = _native.Play(coordinate.X, coordinate.Y, zenColor)
             ? GtpMove.Play(coordinate)
             : Pass(zenColor);
+        LastSearchInfo = new GtpSearchInfo(move, topMove.Playouts, topMove.Winrate, stopwatch.Elapsed.TotalSeconds);
+        return move;
     }
 
     public bool Undo(int count)
@@ -174,7 +186,13 @@ public sealed class ZenEngine : IGtpEngine, IDisposable
             throw new ArgumentOutOfRangeException(nameof(count), "Undo count must be positive.");
         }
 
-        return _native.Undo(count);
+        var result = _native.Undo(count);
+        if (result)
+        {
+            LastSearchInfo = null;
+        }
+
+        return result;
     }
 
     public string EstimateFinalScore()

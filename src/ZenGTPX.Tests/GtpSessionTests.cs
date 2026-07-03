@@ -72,6 +72,14 @@ public sealed class GtpSessionTests
     }
 
     [TestMethod]
+    public void Execute_KnownCommand_LastSearchInfo()
+    {
+        var result = Execute("known_command zengtp_last_search_info");
+
+        Assert.AreEqual("= true\n\n", result.Response.Format());
+    }
+
+    [TestMethod]
     public void Execute_ListCommands_IncludesFirstVersionCommandSurface()
     {
         var result = Execute("list_commands");
@@ -96,6 +104,7 @@ public sealed class GtpSessionTests
                 "time_left",
                 "showboard",
                 "final_score",
+                "zengtp_last_search_info",
                 "quit",
             },
             result.Response.Body.Split('\n'));
@@ -185,12 +194,54 @@ public sealed class GtpSessionTests
         var engine = new FakeGtpEngine
         {
             NextGeneratedMove = GtpMove.Play(new BoardCoordinate(15, 3)),
+            NextSearchInfo = new GtpSearchInfo(GtpMove.Play(new BoardCoordinate(15, 3)), 6000, 0.53421, 1.23456),
         };
 
         var result = Execute("genmove w", engine);
 
         Assert.AreEqual("= Q16\n\n", result.Response.Format());
         Assert.AreEqual(StoneColor.White, engine.LastGenMoveColor);
+    }
+
+    [TestMethod]
+    public void Execute_LastSearchInfo_AfterGenMove()
+    {
+        var engine = new FakeGtpEngine
+        {
+            NextGeneratedMove = GtpMove.Play(new BoardCoordinate(15, 3)),
+            NextSearchInfo = new GtpSearchInfo(GtpMove.Play(new BoardCoordinate(15, 3)), 6000, 0.53421, 1.23456),
+        };
+        var session = new GtpSession(engine);
+
+        Execute("genmove w", session);
+        var result = Execute("zengtp_last_search_info", session);
+
+        Assert.AreEqual("= move Q16 playouts 6000 winrate 0.5342 time 1.235\n\n", result.Response.Format());
+    }
+
+    [TestMethod]
+    public void Execute_LastSearchInfo_WithoutGenMoveReturnsError()
+    {
+        var result = Execute("zengtp_last_search_info");
+
+        Assert.AreEqual("? no search info available\n\n", result.Response.Format());
+    }
+
+    [TestMethod]
+    public void Execute_LastSearchInfo_AfterClearBoardReturnsError()
+    {
+        var engine = new FakeGtpEngine
+        {
+            NextGeneratedMove = GtpMove.Play(new BoardCoordinate(15, 3)),
+            NextSearchInfo = new GtpSearchInfo(GtpMove.Play(new BoardCoordinate(15, 3)), 6000, 0.53421, 1.23456),
+        };
+        var session = new GtpSession(engine);
+
+        Execute("genmove w", session);
+        Execute("clear_board", session);
+        var result = Execute("zengtp_last_search_info", session);
+
+        Assert.AreEqual("? no search info available\n\n", result.Response.Format());
     }
 
     [TestMethod]
@@ -388,6 +439,8 @@ public sealed class GtpSessionTests
     {
         public int BoardSize { get; private set; } = 19;
 
+        public GtpSearchInfo? LastSearchInfo { get; private set; }
+
         public double Komi { get; private set; }
 
         public double MaxTime { get; private set; }
@@ -404,6 +457,8 @@ public sealed class GtpSessionTests
 
         public GtpMove NextGeneratedMove { get; init; } = GtpMove.Pass;
 
+        public GtpSearchInfo? NextSearchInfo { get; init; }
+
         public string[] Calls => _calls.ToArray();
 
         private readonly List<string> _calls = [];
@@ -411,11 +466,13 @@ public sealed class GtpSessionTests
         public void SetBoardSize(int boardSize)
         {
             BoardSize = boardSize;
+            LastSearchInfo = null;
             _calls.Add($"SetBoardSize:{boardSize}");
         }
 
         public void ClearBoard()
         {
+            LastSearchInfo = null;
             _calls.Add("ClearBoard");
         }
 
@@ -449,6 +506,7 @@ public sealed class GtpSessionTests
 
         public bool Play(StoneColor color, GtpMove move)
         {
+            LastSearchInfo = null;
             LastColor = color;
             LastMove = move;
             var moveText = move.Coordinate is { } coordinate
@@ -464,12 +522,14 @@ public sealed class GtpSessionTests
         {
             LastGenMoveColor = color;
             _calls.Add($"GenMove:{color}");
+            LastSearchInfo = NextSearchInfo;
             return NextGeneratedMove;
         }
 
         public bool Undo(int count)
         {
             LastUndoCount = count;
+            LastSearchInfo = null;
             _calls.Add($"Undo:{count}");
             return true;
         }

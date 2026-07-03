@@ -24,6 +24,7 @@ public sealed class GtpSession
         "time_left",
         "showboard",
         "final_score",
+        "zengtp_last_search_info",
         "quit",
     ];
 
@@ -60,6 +61,7 @@ public sealed class GtpSession
                 "time_left" => TimeLeft(command),
                 "showboard" => ShowBoard(command),
                 "final_score" => FinalScore(command),
+                "zengtp_last_search_info" => LastSearchInfo(command),
                 "quit" => new GtpExecutionResult(GtpResponse.Success(command.Id), ShouldQuit: true),
                 _ => Error(command, "unknown command"),
             };
@@ -303,6 +305,25 @@ public sealed class GtpSession
         }
 
         return Success(command, _engine.EstimateFinalScore());
+    }
+
+    private GtpExecutionResult LastSearchInfo(GtpCommand command)
+    {
+        if (command.Arguments.Count != 0)
+        {
+            return Error(command, "zengtp_last_search_info does not accept arguments");
+        }
+
+        if (_engine.LastSearchInfo is not { } searchInfo)
+        {
+            return Error(command, "no search info available");
+        }
+
+        return Success(
+            command,
+            string.Create(
+                CultureInfo.InvariantCulture,
+                $"move {FormatMove(searchInfo.Move)} playouts {searchInfo.Playouts} winrate {searchInfo.Winrate:0.0000} time {searchInfo.TimeSeconds:0.000}"));
     }
 
     private static StoneColor ParseColor(string value)
