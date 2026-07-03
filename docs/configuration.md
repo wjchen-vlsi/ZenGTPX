@@ -86,7 +86,7 @@ Recommended ranges:
 | --- | --- | --- |
 | `boardSize` | `1` to `25` | `19` |
 | `komi` | any number | `6.5` or `7.5` |
-| `handicap` | `0` | `0` |
+| `handicap` | `0` or greater | `0` |
 | `threads` | positive integer | `1-4` conservative, `8` on 8-core CPUs, `10-12` for stronger play |
 | `resignThreshold` | `0.0` to `1.0` | `0.03-0.10` |
 
@@ -106,4 +106,5 @@ These are used directly only with `mode = advanced`; `mode = rank` and `mode = f
 
 - `time_settings` / `time_left` are forwarded to Zen native time API where supported; `time_settings` also updates the wrapper's per-move deadline.
 - `final_score` returns an area-score estimate from Zen territory statistics, not a full ruleset adjudication.
-- Config `handicap` must remain `0`; GTP games can use `fixed_handicap` / `place_free_handicap` for standard handicap placement.
+- Config `handicap` is a passive game parameter. It does not place stones or change board state by itself.
+- Actual handicap placement remains controlled by GTP `fixed_handicap` / `place_free_handicap`.

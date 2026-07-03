@@ -5,8 +5,6 @@ namespace ZenGTPX.Config;
 
 public sealed record ZenGtpOptions
 {
-    private const int SupportedHandicap = 0;
-
     public string Mode { get; init; } = "rank";
 
     public string RankPreset { get; init; } = "9d";
@@ -47,9 +45,9 @@ public sealed record ZenGtpOptions
             throw new InvalidOperationException("mode must be one of: rank, fixed-time, advanced.");
         }
 
-        if (Handicap != SupportedHandicap)
+        if (Handicap < 0)
         {
-            throw new InvalidOperationException("handicap is not supported in the first version; set handicap to 0.");
+            throw new InvalidOperationException("handicap must not be negative.");
         }
 
         if (Threads <= 0)

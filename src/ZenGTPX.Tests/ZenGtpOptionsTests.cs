@@ -231,7 +231,7 @@ public sealed class ZenGtpOptionsTests
     }
 
     [TestMethod]
-    public void Load_RejectsUnsupportedHandicap()
+    public void Load_AcceptsPassiveHandicapParameter()
     {
         var configPath = WriteTempConfig("""
             {
@@ -239,9 +239,9 @@ public sealed class ZenGtpOptionsTests
             }
             """);
 
-        var exception = Assert.ThrowsException<InvalidOperationException>(
-            () => ZenGtpOptionsLoader.Load(["--config", configPath], Environment.CurrentDirectory));
-        Assert.AreEqual("handicap is not supported in the first version; set handicap to 0.", exception.Message);
+        var options = ZenGtpOptionsLoader.Load(["--config", configPath], Environment.CurrentDirectory);
+
+        Assert.AreEqual(2, options.Handicap);
     }
 
     [TestMethod]
@@ -255,12 +255,12 @@ public sealed class ZenGtpOptionsTests
     }
 
     [TestMethod]
-    public void Validate_RejectsUnsupportedHandicap()
+    public void Validate_RejectsNegativeHandicap()
     {
-        var options = new ZenGtpOptions { Handicap = 2 };
+        var options = new ZenGtpOptions { Handicap = -1 };
 
         var exception = Assert.ThrowsException<InvalidOperationException>(options.Validate);
-        Assert.AreEqual("handicap is not supported in the first version; set handicap to 0.", exception.Message);
+        Assert.AreEqual("handicap must not be negative.", exception.Message);
     }
 
     [TestMethod]
