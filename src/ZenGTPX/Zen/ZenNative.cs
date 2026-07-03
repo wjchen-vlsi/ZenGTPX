@@ -8,6 +8,10 @@ internal sealed class ZenNative : IDisposable
     private readonly IntPtr _module;
 
     private readonly ZenClearBoard _clearBoard;
+    private readonly ZenGetBoardColor _getBoardColor;
+    private readonly ZenGetNumBlackPrisoners _getNumBlackPrisoners;
+    private readonly ZenGetNumWhitePrisoners _getNumWhitePrisoners;
+    private readonly ZenGetTerritoryStatistics _getTerritoryStatistics;
     private readonly ZenGetTopMoveInfo _getTopMoveInfo;
     private readonly ZenInitialize _initialize;
     private readonly ZenIsInitialized _isInitialized;
@@ -17,6 +21,7 @@ internal sealed class ZenNative : IDisposable
     private readonly ZenSetBoardSize _setBoardSize;
     private readonly ZenSetKomi _setKomi;
     private readonly ZenSetMaxTime _setMaxTime;
+    private readonly ZenSetNextColor _setNextColor;
     private readonly ZenSetNumberOfSimulations _setNumberOfSimulations;
     private readonly ZenSetNumberOfThreads _setNumberOfThreads;
     private readonly ZenSetPnLevel _setPnLevel;
@@ -24,11 +29,17 @@ internal sealed class ZenNative : IDisposable
     private readonly ZenSetVnMixRate _setVnMixRate;
     private readonly ZenStartThinking _startThinking;
     private readonly ZenStopThinking _stopThinking;
+    private readonly ZenTimeLeft _timeLeft;
+    private readonly ZenTimeSettings _timeSettings;
     private readonly ZenUndo _undo;
 
     private ZenNative(
         IntPtr module,
         ZenClearBoard clearBoard,
+        ZenGetBoardColor getBoardColor,
+        ZenGetNumBlackPrisoners getNumBlackPrisoners,
+        ZenGetNumWhitePrisoners getNumWhitePrisoners,
+        ZenGetTerritoryStatistics getTerritoryStatistics,
         ZenGetTopMoveInfo getTopMoveInfo,
         ZenInitialize initialize,
         ZenIsInitialized isInitialized,
@@ -38,6 +49,7 @@ internal sealed class ZenNative : IDisposable
         ZenSetBoardSize setBoardSize,
         ZenSetKomi setKomi,
         ZenSetMaxTime setMaxTime,
+        ZenSetNextColor setNextColor,
         ZenSetNumberOfSimulations setNumberOfSimulations,
         ZenSetNumberOfThreads setNumberOfThreads,
         ZenSetPnLevel setPnLevel,
@@ -45,10 +57,16 @@ internal sealed class ZenNative : IDisposable
         ZenSetVnMixRate setVnMixRate,
         ZenStartThinking startThinking,
         ZenStopThinking stopThinking,
+        ZenTimeLeft timeLeft,
+        ZenTimeSettings timeSettings,
         ZenUndo undo)
     {
         _module = module;
         _clearBoard = clearBoard;
+        _getBoardColor = getBoardColor;
+        _getNumBlackPrisoners = getNumBlackPrisoners;
+        _getNumWhitePrisoners = getNumWhitePrisoners;
+        _getTerritoryStatistics = getTerritoryStatistics;
         _getTopMoveInfo = getTopMoveInfo;
         _initialize = initialize;
         _isInitialized = isInitialized;
@@ -58,6 +76,7 @@ internal sealed class ZenNative : IDisposable
         _setBoardSize = setBoardSize;
         _setKomi = setKomi;
         _setMaxTime = setMaxTime;
+        _setNextColor = setNextColor;
         _setNumberOfSimulations = setNumberOfSimulations;
         _setNumberOfThreads = setNumberOfThreads;
         _setPnLevel = setPnLevel;
@@ -65,6 +84,8 @@ internal sealed class ZenNative : IDisposable
         _setVnMixRate = setVnMixRate;
         _startThinking = startThinking;
         _stopThinking = stopThinking;
+        _timeLeft = timeLeft;
+        _timeSettings = timeSettings;
         _undo = undo;
     }
 
@@ -90,6 +111,10 @@ internal sealed class ZenNative : IDisposable
             return new ZenNative(
                 module,
                 Get<ZenClearBoard>(module, 2, "ZenClearBoard"),
+                Get<ZenGetBoardColor>(module, 5, "ZenGetBoardColor"),
+                Get<ZenGetNumBlackPrisoners>(module, 8, "ZenGetNumBlackPrisoners"),
+                Get<ZenGetNumWhitePrisoners>(module, 9, "ZenGetNumWhitePrisoners"),
+                Get<ZenGetTerritoryStatistics>(module, 11, "ZenGetTerritoryStatictics"),
                 Get<ZenGetTopMoveInfo>(module, 12, "ZenGetTopMoveInfo"),
                 Get<ZenInitialize>(module, 13, "ZenInitialize"),
                 Get<ZenIsInitialized>(module, 14, "ZenIsInitialized"),
@@ -99,6 +124,7 @@ internal sealed class ZenNative : IDisposable
                 Get<ZenSetBoardSize>(module, 22, "ZenSetBoardSize"),
                 Get<ZenSetKomi>(module, 23, "ZenSetKomi"),
                 Get<ZenSetMaxTime>(module, 24, "ZenSetMaxTime"),
+                Get<ZenSetNextColor>(module, 25, "ZenSetNextColor"),
                 Get<ZenSetNumberOfSimulations>(module, 26, "ZenSetNumberOfSimulations"),
                 Get<ZenSetNumberOfThreads>(module, 27, "ZenSetNumberOfThreads"),
                 Get<ZenSetPnLevel>(module, 28, "ZenSetPnLevel"),
@@ -106,6 +132,8 @@ internal sealed class ZenNative : IDisposable
                 Get<ZenSetVnMixRate>(module, 30, "ZenSetVnMixRate"),
                 Get<ZenStartThinking>(module, 31, "ZenStartThinking"),
                 Get<ZenStopThinking>(module, 32, "ZenStopThinking"),
+                Get<ZenTimeLeft>(module, 33, "ZenTimeLeft"),
+                Get<ZenTimeSettings>(module, 34, "ZenTimeSettings"),
                 Get<ZenUndo>(module, 35, "ZenUndo"));
         }
         catch
@@ -118,6 +146,29 @@ internal sealed class ZenNative : IDisposable
     public void Initialize(IntPtr path) => _initialize(path);
 
     public void ClearBoard() => _clearBoard();
+
+    public int GetBoardColor(int x, int y) => _getBoardColor(x, y);
+
+    public int GetNumBlackPrisoners() => _getNumBlackPrisoners();
+
+    public int GetNumWhitePrisoners() => _getNumWhitePrisoners();
+
+    public int[,] GetTerritoryStatistics()
+    {
+        var values = new int[19 * 19];
+        _getTerritoryStatistics(values);
+
+        var result = new int[19, 19];
+        for (var y = 0; y < 19; y++)
+        {
+            for (var x = 0; x < 19; x++)
+            {
+                result[y, x] = values[(y * 19) + x];
+            }
+        }
+
+        return result;
+    }
 
     public ZenTopMove GetTopMoveInfo(int index)
     {
@@ -147,6 +198,8 @@ internal sealed class ZenNative : IDisposable
 
     public void SetMaxTime(float seconds) => _setMaxTime(seconds);
 
+    public void SetNextColor(int color) => _setNextColor(color);
+
     public void SetNumberOfSimulations(int count) => _setNumberOfSimulations(count);
 
     public void SetNumberOfThreads(int threads) => _setNumberOfThreads(threads);
@@ -160,6 +213,10 @@ internal sealed class ZenNative : IDisposable
     public void StartThinking(int color) => _startThinking(color);
 
     public void StopThinking() => _stopThinking();
+
+    public void TimeLeft(int color, int time, int stones) => _timeLeft(color, time, stones);
+
+    public void TimeSettings(int mainTime, int byoyomiTime, int periods) => _timeSettings(mainTime, byoyomiTime, periods);
 
     public bool Undo(int count) => _undo(count) != 0;
 
@@ -182,6 +239,18 @@ internal sealed class ZenNative : IDisposable
 
     [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
     private delegate void ZenClearBoard();
+
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+    private delegate int ZenGetBoardColor(int x, int y);
+
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+    private delegate int ZenGetNumBlackPrisoners();
+
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+    private delegate int ZenGetNumWhitePrisoners();
+
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+    private delegate void ZenGetTerritoryStatistics([In, Out] int[] values);
 
     [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
     private delegate void ZenGetTopMoveInfo(int index, ref int x, ref int y, ref int playouts, ref float winrate, [Out] byte[] text, int textLength);
@@ -211,6 +280,9 @@ internal sealed class ZenNative : IDisposable
     private delegate void ZenSetMaxTime(float seconds);
 
     [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+    private delegate void ZenSetNextColor(int color);
+
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
     private delegate void ZenSetNumberOfSimulations(int count);
 
     [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
@@ -230,6 +302,12 @@ internal sealed class ZenNative : IDisposable
 
     [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
     private delegate void ZenStopThinking();
+
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+    private delegate void ZenTimeLeft(int color, int time, int stones);
+
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+    private delegate void ZenTimeSettings(int mainTime, int byoyomiTime, int periods);
 
     [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
     private delegate byte ZenUndo(int count);

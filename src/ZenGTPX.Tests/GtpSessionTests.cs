@@ -259,12 +259,20 @@ public sealed class GtpSessionTests
     }
 
     [TestMethod]
-    public void Execute_PlaceFreeHandicap_UsesDeterministicStandardPlacement()
+    public void Execute_PlaceFreeHandicap_PlacesProvidedVertices()
     {
         var engine = new FakeGtpEngine();
-        var result = Execute("place_free_handicap 5", engine);
+        var result = Execute("place_free_handicap D16 Q16 D4", engine);
 
-        Assert.AreEqual("= D4 Q16 Q4 D16 K10\n\n", result.Response.Format());
+        Assert.AreEqual("= D16 Q16 D4\n\n", result.Response.Format());
+        CollectionAssert.AreEqual(
+            new[]
+            {
+                "Play:Black:D16",
+                "Play:Black:Q16",
+                "Play:Black:D4",
+            },
+            engine.Calls);
     }
 
     [TestMethod]
@@ -295,6 +303,7 @@ public sealed class GtpSessionTests
 
         Assert.AreEqual("=\n\n", result.Response.Format());
         Assert.AreEqual(30.0, engine.MaxTime);
+        CollectionAssert.Contains(engine.Calls, "SetTimeSettings:600:30:3");
     }
 
     [TestMethod]
@@ -305,14 +314,17 @@ public sealed class GtpSessionTests
 
         Assert.AreEqual("=\n\n", result.Response.Format());
         Assert.AreEqual(120.0, engine.MaxTime);
+        CollectionAssert.Contains(engine.Calls, "SetTimeSettings:120:0:0");
     }
 
     [TestMethod]
-    public void Execute_TimeLeft_ValidatesArguments()
+    public void Execute_TimeLeft_ForwardsToEngine()
     {
-        var result = Execute("time_left b 10 5");
+        var engine = new FakeGtpEngine();
+        var result = Execute("time_left b 10 5", engine);
 
         Assert.AreEqual("=\n\n", result.Response.Format());
+        CollectionAssert.Contains(engine.Calls, "SetTimeLeft:Black:10:5");
     }
 
     [TestMethod]
@@ -345,11 +357,12 @@ public sealed class GtpSessionTests
     }
 
     [TestMethod]
-    public void Execute_FinalScore_ReturnsExplicitUnavailableError()
+    public void Execute_FinalScore_ReturnsEngineEstimate()
     {
-        var result = Execute("final_score");
+        var engine = new FakeGtpEngine { FinalScore = "B+3.5" };
+        var result = Execute("final_score", engine);
 
-        Assert.AreEqual("? final_score is not available\n\n", result.Response.Format());
+        Assert.AreEqual("= B+3.5\n\n", result.Response.Format());
     }
 
     private static GtpExecutionResult Execute(string line)
@@ -378,6 +391,8 @@ public sealed class GtpSessionTests
         public double Komi { get; private set; }
 
         public double MaxTime { get; private set; }
+
+        public string FinalScore { get; init; } = "W+0.5";
 
         public StoneColor LastColor { get; private set; }
 
@@ -410,10 +425,26 @@ public sealed class GtpSessionTests
             _calls.Add($"SetKomi:{komi}");
         }
 
+        public void SetNextColor(StoneColor color)
+        {
+            _calls.Add($"SetNextColor:{color}");
+        }
+
         public void SetMaxTime(double seconds)
         {
             MaxTime = seconds;
             _calls.Add($"SetMaxTime:{seconds}");
+        }
+
+        public void SetTimeSettings(double mainTime, double byoyomiTime, int periods)
+        {
+            MaxTime = byoyomiTime > 0 ? byoyomiTime : mainTime;
+            _calls.Add($"SetTimeSettings:{mainTime}:{byoyomiTime}:{periods}");
+        }
+
+        public void SetTimeLeft(StoneColor color, double time, int stones)
+        {
+            _calls.Add($"SetTimeLeft:{color}:{time}:{stones}");
         }
 
         public bool Play(StoneColor color, GtpMove move)
@@ -441,6 +472,12 @@ public sealed class GtpSessionTests
             LastUndoCount = count;
             _calls.Add($"Undo:{count}");
             return true;
+        }
+
+        public string EstimateFinalScore()
+        {
+            _calls.Add("EstimateFinalScore");
+            return FinalScore;
         }
     }
 }

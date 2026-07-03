@@ -1,6 +1,7 @@
 using ZenGTPX.Config;
 using ZenGTPX.Board;
 using ZenGTPX.Gtp;
+using System.Globalization;
 
 namespace ZenGTPX.Zen;
 
@@ -9,6 +10,7 @@ public sealed class ZenEngine : IGtpEngine, IDisposable
     private readonly ZenNative _native;
     private readonly ZenGtpOptions _options;
     private int _boardSize;
+    private double _komi;
     private double _maxTime;
 
     private ZenEngine(ZenNative native, ZenGtpOptions options)
@@ -16,6 +18,7 @@ public sealed class ZenEngine : IGtpEngine, IDisposable
         _native = native;
         _options = options;
         _boardSize = options.BoardSize;
+        _komi = options.Komi;
         _maxTime = options.MaxTimeSeconds;
     }
 
@@ -74,6 +77,12 @@ public sealed class ZenEngine : IGtpEngine, IDisposable
     public void SetKomi(double komi)
     {
         _native.SetKomi((float)komi);
+        _komi = komi;
+    }
+
+    public void SetNextColor(StoneColor color)
+    {
+        _native.SetNextColor((int)color);
     }
 
     public void SetMaxTime(double seconds)
@@ -85,6 +94,37 @@ public sealed class ZenEngine : IGtpEngine, IDisposable
 
         _native.SetMaxTime((float)seconds);
         _maxTime = seconds;
+    }
+
+    public void SetTimeSettings(double mainTime, double byoyomiTime, int periods)
+    {
+        if (mainTime < 0 || byoyomiTime < 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(mainTime), "Time settings must not be negative.");
+        }
+
+        if (periods < 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(periods), "Time periods must not be negative.");
+        }
+
+        _native.TimeSettings(ToNativeSeconds(mainTime), ToNativeSeconds(byoyomiTime), periods);
+
+        var maxTime = byoyomiTime > 0 ? byoyomiTime : mainTime;
+        if (maxTime > 0)
+        {
+            SetMaxTime(maxTime);
+        }
+    }
+
+    public void SetTimeLeft(StoneColor color, double time, int stones)
+    {
+        if (time < 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(time), "Time left must not be negative.");
+        }
+
+        _native.TimeLeft((int)color, ToNativeSeconds(time), stones);
     }
 
     public bool Play(StoneColor color, GtpMove move)
@@ -107,6 +147,7 @@ public sealed class ZenEngine : IGtpEngine, IDisposable
     public GtpMove GenMove(StoneColor color)
     {
         var zenColor = (int)color;
+        _native.SetNextColor(zenColor);
         var topMove = ThinkUntilTopMove(zenColor);
 
         if (topMove.Playouts <= 0 || !IsOnBoard(topMove.X, topMove.Y))
@@ -134,6 +175,120 @@ public sealed class ZenEngine : IGtpEngine, IDisposable
         }
 
         return _native.Undo(count);
+    }
+
+    public string EstimateFinalScore()
+    {
+        if (_boardSize > 19)
+        {
+            throw new InvalidOperationException("final_score estimate is supported only up to board size 19.");
+        }
+
+        var result = EstimateAreaScore(level: 3);
+        var winner = result > 0 ? "B" : "W";
+        return string.Create(
+            CultureInfo.InvariantCulture,
+            $"{winner}+{Math.Abs(result):0.0}");
+    }
+
+    private double EstimateAreaScore(int level)
+    {
+        var territory = _native.GetTerritoryStatistics();
+        var areaResults = new double[10];
+
+        for (var thresholdLevel = 0; thresholdLevel < areaResults.Length; thresholdLevel++)
+        {
+            var threshold = thresholdLevel * 100;
+            var score = CalculateTerritoryStats(threshold, territory);
+            var blackArea = score.BlackAlive + score.BlackCapture + score.BlackTerritory;
+            var whiteArea = score.WhiteAlive + score.WhiteCapture + score.WhiteTerritory;
+            areaResults[thresholdLevel] = blackArea - whiteArea - _komi;
+        }
+
+        return areaResults[level];
+    }
+
+    private TerritoryScore CalculateTerritoryStats(int threshold, int[,] territory)
+    {
+        var blackAlive = 0;
+        var blackCapture = 0;
+        var blackTerritory = 0;
+        var whiteAlive = 0;
+        var whiteCapture = 0;
+        var whiteTerritory = 0;
+
+        for (var y = 0; y < _boardSize; y++)
+        {
+            for (var x = 0; x < _boardSize; x++)
+            {
+                var boardColor = _native.GetBoardColor(x, y);
+                var blackOwnsPoint = IsSurroundedByThreshold(territory, x, y, threshold, black: true);
+                var whiteOwnsPoint = IsSurroundedByThreshold(territory, x, y, threshold, black: false);
+
+                if (boardColor == 0)
+                {
+                    if (blackOwnsPoint)
+                    {
+                        blackTerritory++;
+                    }
+
+                    if (whiteOwnsPoint)
+                    {
+                        whiteTerritory++;
+                    }
+                }
+                else if (boardColor == (int)StoneColor.Black)
+                {
+                    if (territory[y, x] >= -threshold)
+                    {
+                        blackAlive++;
+                    }
+                    else
+                    {
+                        whiteCapture++;
+                    }
+                }
+                else if (boardColor == (int)StoneColor.White)
+                {
+                    if (territory[y, x] > threshold)
+                    {
+                        blackCapture++;
+                    }
+                    else
+                    {
+                        whiteAlive++;
+                    }
+                }
+            }
+        }
+
+        return new TerritoryScore(
+            blackAlive,
+            blackCapture,
+            blackTerritory,
+            whiteAlive,
+            whiteCapture,
+            whiteTerritory);
+    }
+
+    private bool IsSurroundedByThreshold(int[,] territory, int x, int y, int threshold, bool black)
+    {
+        return MeetsThreshold(territory, x, y - 1, threshold, black)
+            && MeetsThreshold(territory, x, y + 1, threshold, black)
+            && MeetsThreshold(territory, x - 1, y, threshold, black)
+            && MeetsThreshold(territory, x + 1, y, threshold, black);
+    }
+
+    private bool MeetsThreshold(int[,] territory, int x, int y, int threshold, bool black)
+    {
+        if (x < 0 || x >= _boardSize || y < 0 || y >= _boardSize)
+        {
+            return true;
+        }
+
+        return black
+            ? territory[y, x] > threshold
+            : territory[y, x] < -threshold;
     }
 
     private ZenTopMove ThinkUntilTopMove(int zenColor)
@@ -173,8 +328,26 @@ public sealed class ZenEngine : IGtpEngine, IDisposable
         return x >= 0 && x < _boardSize && y >= 0 && y < _boardSize;
     }
 
+    private static int ToNativeSeconds(double seconds)
+    {
+        if (seconds > int.MaxValue)
+        {
+            throw new ArgumentOutOfRangeException(nameof(seconds), "Time value is too large.");
+        }
+
+        return (int)Math.Ceiling(seconds);
+    }
+
     public void Dispose()
     {
         _native.Dispose();
     }
+
+    private readonly record struct TerritoryScore(
+        int BlackAlive,
+        int BlackCapture,
+        int BlackTerritory,
+        int WhiteAlive,
+        int WhiteCapture,
+        int WhiteTerritory);
 }

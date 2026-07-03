@@ -4,6 +4,8 @@
 
 ### Added
 - Support `fixed_handicap` and `place_free_handicap` GTP commands with deterministic standard star-point placement.
+- Forward GTP `time_settings` and `time_left` to Zen native time APIs while preserving the wrapper move deadline.
+- Return a Zen territory-statistics based area-score estimate for `final_score`.
 - Document the version history baseline for ZenGTPX.
 
 ## 0.1.0

@@ -33,4 +33,5 @@ Arguments:
 
 - 不要將 ZenGTPX 設為 analysis engine。
 - 第一版目標是一般 GTP 對弈流程。
+- `final_score` 為 Zen territory statistics 推算的估分，不是完整終局數子裁判。
 - `Zen.dll` 必須由使用者自行合法提供。

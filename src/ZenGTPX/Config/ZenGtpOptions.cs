@@ -7,6 +7,10 @@ public sealed record ZenGtpOptions
 {
     private const int SupportedHandicap = 0;
 
+    public string Mode { get; init; } = "rank";
+
+    public string RankPreset { get; init; } = "9d";
+
     public string ZenDll { get; init; } = "Zen.dll";
 
     public int BoardSize { get; init; } = 19;
@@ -15,27 +19,32 @@ public sealed record ZenGtpOptions
 
     public int Handicap { get; init; } = 0;
 
-    public int Threads { get; init; } = 1;
+    public int Threads { get; init; } = 4;
 
-    public double MaxTimeSeconds { get; init; } = 1.0;
+    public double MaxTimeSeconds { get; init; } = 60.0;
 
     public double? MaxTime { get; init; }
 
-    public int MaxSimulations { get; init; } = 100;
+    public int MaxSimulations { get; init; } = 6000;
 
     public double ResignThreshold { get; init; } = 0.1;
 
-    public int PnLevel { get; init; } = 2;
+    public int PnLevel { get; init; } = 3;
 
-    public double PnWeight { get; init; } = 1.0;
+    public double PnWeight { get; init; } = 0.75;
 
-    public double VnMixRate { get; init; } = 0.55;
+    public double VnMixRate { get; init; } = 1.0;
 
     public void Validate()
     {
         if (BoardSize <= 0 || BoardSize > 25)
         {
             throw new InvalidOperationException("boardSize must be between 1 and 25.");
+        }
+
+        if (!IsSupportedMode(Mode))
+        {
+            throw new InvalidOperationException("mode must be one of: rank, fixed-time, advanced.");
         }
 
         if (Handicap != SupportedHandicap)
@@ -62,6 +71,14 @@ public sealed record ZenGtpOptions
         {
             throw new InvalidOperationException("resignThreshold must be between 0 and 1.");
         }
+    }
+
+    private static bool IsSupportedMode(string mode)
+    {
+        return mode.Equals("rank", StringComparison.OrdinalIgnoreCase)
+            || mode.Equals("fixed-time", StringComparison.OrdinalIgnoreCase)
+            || mode.Equals("fixedtime", StringComparison.OrdinalIgnoreCase)
+            || mode.Equals("advanced", StringComparison.OrdinalIgnoreCase);
     }
 
     public string ResolveZenDllPath(string baseDirectory)
@@ -155,6 +172,8 @@ public static class ZenGtpOptionsLoader
     {
         return key.ToLowerInvariant() switch
         {
+            "mode" => options with { Mode = value },
+            "rankpreset" => options with { RankPreset = value },
             "zendll" => options with { ZenDll = value },
             "boardsize" => options with { BoardSize = ParseInt(value, key, lineNumber) },
             "komi" => options with { Komi = ParseDouble(value, key, lineNumber) },
@@ -173,9 +192,11 @@ public static class ZenGtpOptionsLoader
 
     private static ZenGtpOptions ApplyCommandLineOverrides(ZenGtpOptions options, string[] args)
     {
-        var normalized = options.NormalizeAliases();
+        var normalized = options.NormalizeAliases().ApplyModeDefaults();
         var overridden = normalized with
         {
+            Mode = GetArgumentValue(args, "--mode") ?? normalized.Mode,
+            RankPreset = GetArgumentValue(args, "--rankPreset") ?? normalized.RankPreset,
             ZenDll = GetArgumentValue(args, "--zenDll") ?? normalized.ZenDll,
             BoardSize = GetIntArgument(args, "--boardSize") ?? normalized.BoardSize,
             Komi = GetDoubleArgument(args, "--komi") ?? normalized.Komi,
@@ -189,7 +210,19 @@ public static class ZenGtpOptionsLoader
             VnMixRate = GetDoubleArgument(args, "--vnMixRate") ?? normalized.VnMixRate,
         };
 
-        return overridden.ValidateAndReturn();
+        return overridden.ApplyModeDefaults().ApplyAdvancedCommandLineOverrides(args).ValidateAndReturn();
+    }
+
+    private static ZenGtpOptions ApplyAdvancedCommandLineOverrides(this ZenGtpOptions options, string[] args)
+    {
+        return options with
+        {
+            MaxTimeSeconds = GetDoubleArgument(args, "--maxTimeSeconds") ?? GetDoubleArgument(args, "--maxTime") ?? options.MaxTimeSeconds,
+            MaxSimulations = GetIntArgument(args, "--maxSimulations") ?? options.MaxSimulations,
+            PnLevel = GetIntArgument(args, "--pnLevel") ?? options.PnLevel,
+            PnWeight = GetDoubleArgument(args, "--pnWeight") ?? options.PnWeight,
+            VnMixRate = GetDoubleArgument(args, "--vnMixRate") ?? options.VnMixRate,
+        };
     }
 
     private static string? GetArgumentValue(string[] args, string name)
@@ -270,5 +303,83 @@ public static class ZenGtpOptionsLoader
         return options.MaxTime is null
             ? options
             : options with { MaxTimeSeconds = options.MaxTime.Value };
+    }
+
+    private static ZenGtpOptions ApplyModeDefaults(this ZenGtpOptions options)
+    {
+        if (options.Mode.Equals("advanced", StringComparison.OrdinalIgnoreCase))
+        {
+            return options;
+        }
+
+        if (options.Mode.Equals("fixed-time", StringComparison.OrdinalIgnoreCase)
+            || options.Mode.Equals("fixedtime", StringComparison.OrdinalIgnoreCase))
+        {
+            return options with
+            {
+                Mode = "fixed-time",
+                MaxSimulations = 1_000_000,
+                PnLevel = 3,
+                PnWeight = 1.0,
+                VnMixRate = 0.75,
+            };
+        }
+
+        if (options.Mode.Equals("rank", StringComparison.OrdinalIgnoreCase))
+        {
+            var preset = RankPresetTable.Get(options.RankPreset);
+            return options with
+            {
+                Mode = "rank",
+                RankPreset = preset.Name,
+                Threads = Math.Min(options.Threads, 4),
+                MaxTimeSeconds = 60.0,
+                MaxSimulations = preset.MaxSimulations,
+                PnLevel = preset.PnLevel,
+                PnWeight = preset.PnWeight,
+                VnMixRate = preset.VnMixRate,
+            };
+        }
+
+        return options;
+    }
+}
+
+internal readonly record struct RankPreset(
+    string Name,
+    int MaxSimulations,
+    int PnLevel,
+    double PnWeight,
+    double VnMixRate);
+
+internal static class RankPresetTable
+{
+    private static readonly Dictionary<string, RankPreset> Presets = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["6k"] = new("6k", 1000, 0, 0.30, 1.6),
+        ["5k"] = new("5k", 1100, 0, 0.30, 1.4),
+        ["4k"] = new("4k", 1200, 0, 0.30, 1.0),
+        ["3k"] = new("3k", 1300, 1, 0.30, 2.4),
+        ["2k"] = new("2k", 1400, 1, 0.30, 2.0),
+        ["1k"] = new("1k", 1600, 1, 0.30, 1.6),
+        ["1d"] = new("1d", 1800, 1, 0.35, 1.3),
+        ["2d"] = new("2d", 2000, 1, 0.40, 1.0),
+        ["3d"] = new("3d", 2200, 2, 0.45, 2.0),
+        ["4d"] = new("4d", 2400, 2, 0.50, 1.5),
+        ["5d"] = new("5d", 2700, 2, 0.55, 1.0),
+        ["6d"] = new("6d", 3000, 3, 0.60, 4.4),
+        ["7d"] = new("7d", 3500, 3, 0.65, 2.8),
+        ["8d"] = new("8d", 4000, 3, 0.70, 1.4),
+        ["9d"] = new("9d", 6000, 3, 0.75, 1.0),
+    };
+
+    public static RankPreset Get(string name)
+    {
+        if (Presets.TryGetValue(name, out var preset))
+        {
+            return preset;
+        }
+
+        throw new InvalidOperationException("rankPreset must be one of: 6k, 5k, 4k, 3k, 2k, 1k, 1d, 2d, 3d, 4d, 5d, 6d, 7d, 8d, 9d.");
     }
 }

@@ -54,8 +54,8 @@ public sealed class GtpSession
                 "play" => Play(command),
                 "genmove" => GenMove(command),
                 "undo" => Undo(command),
-                "fixed_handicap" => Handicap(command),
-                "place_free_handicap" => Handicap(command),
+                "fixed_handicap" => FixedHandicap(command),
+                "place_free_handicap" => PlaceFreeHandicap(command),
                 "time_settings" => TimeSettings(command),
                 "time_left" => TimeLeft(command),
                 "showboard" => ShowBoard(command),
@@ -175,15 +175,54 @@ public sealed class GtpSession
         return Success(command, "");
     }
 
-    private GtpExecutionResult Handicap(GtpCommand command)
+    private GtpExecutionResult FixedHandicap(GtpCommand command)
     {
         if (command.Arguments.Count != 1)
         {
-            return Error(command, $"{command.Name} requires one argument");
+            return Error(command, "fixed_handicap requires one argument");
         }
 
         var count = int.Parse(command.Arguments[0], CultureInfo.InvariantCulture);
         var coordinates = FixedHandicapCoordinates(_engine.BoardSize, count);
+
+        foreach (var coordinate in coordinates)
+        {
+            var move = GtpMove.Play(coordinate);
+            if (!_engine.Play(StoneColor.Black, move))
+            {
+                return Error(
+                    command,
+                    $"illegal handicap stone at {GtpVertex.Format(coordinate, _engine.BoardSize)}");
+            }
+
+            _board.Play(StoneColor.Black, move);
+        }
+
+        return Success(
+            command,
+            string.Join(
+                ' ',
+                coordinates.Select(coordinate => GtpVertex.Format(coordinate, _engine.BoardSize))));
+    }
+
+    private GtpExecutionResult PlaceFreeHandicap(GtpCommand command)
+    {
+        if (command.Arguments.Count == 0)
+        {
+            return Error(command, "place_free_handicap requires at least one vertex");
+        }
+
+        var coordinates = new List<BoardCoordinate>(command.Arguments.Count);
+        foreach (var argument in command.Arguments)
+        {
+            var move = GtpVertex.Parse(argument, _engine.BoardSize);
+            if (move.IsPass || move.IsResign || move.Coordinate is not { } coordinate)
+            {
+                return Error(command, $"invalid handicap vertex: {argument}");
+            }
+
+            coordinates.Add(coordinate);
+        }
 
         foreach (var coordinate in coordinates)
         {
@@ -214,18 +253,14 @@ public sealed class GtpSession
 
         var mainTime = double.Parse(command.Arguments[0], CultureInfo.InvariantCulture);
         var byoyomiTime = double.Parse(command.Arguments[1], CultureInfo.InvariantCulture);
-        _ = int.Parse(command.Arguments[2], CultureInfo.InvariantCulture);
+        var periods = int.Parse(command.Arguments[2], CultureInfo.InvariantCulture);
 
-        if (mainTime < 0 || byoyomiTime < 0)
+        if (mainTime < 0 || byoyomiTime < 0 || periods < 0)
         {
             return Error(command, "time_settings values must not be negative");
         }
 
-        var maxTime = byoyomiTime > 0 ? byoyomiTime : mainTime;
-        if (maxTime > 0)
-        {
-            _engine.SetMaxTime(maxTime);
-        }
+        _engine.SetTimeSettings(mainTime, byoyomiTime, periods);
 
         return Success(command, "");
     }
@@ -237,13 +272,17 @@ public sealed class GtpSession
             return Error(command, "time_left requires color, time, and stones");
         }
 
-        _ = ParseColor(command.Arguments[0]);
+        var color = ParseColor(command.Arguments[0]);
         var time = double.Parse(command.Arguments[1], CultureInfo.InvariantCulture);
-        _ = int.Parse(command.Arguments[2], CultureInfo.InvariantCulture);
+        var stones = int.Parse(command.Arguments[2], CultureInfo.InvariantCulture);
 
-        return time < 0
-            ? Error(command, "time_left time must not be negative")
-            : Success(command, "");
+        if (time < 0)
+        {
+            return Error(command, "time_left time must not be negative");
+        }
+
+        _engine.SetTimeLeft(color, time, stones);
+        return Success(command, "");
     }
 
     private GtpExecutionResult ShowBoard(GtpCommand command)
@@ -256,14 +295,14 @@ public sealed class GtpSession
         return Success(command, "\n" + _board.FormatShowBoard());
     }
 
-    private static GtpExecutionResult FinalScore(GtpCommand command)
+    private GtpExecutionResult FinalScore(GtpCommand command)
     {
         if (command.Arguments.Count != 0)
         {
             return Error(command, "final_score does not accept arguments");
         }
 
-        return Error(command, "final_score is not available");
+        return Success(command, _engine.EstimateFinalScore());
     }
 
     private static StoneColor ParseColor(string value)

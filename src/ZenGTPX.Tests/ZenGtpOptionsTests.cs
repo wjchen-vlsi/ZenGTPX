@@ -12,7 +12,14 @@ public sealed class ZenGtpOptionsTests
 
         Assert.AreEqual(19, options.BoardSize);
         Assert.AreEqual(7.5, options.Komi);
-        Assert.AreEqual(1, options.Threads);
+        Assert.AreEqual("rank", options.Mode);
+        Assert.AreEqual("9d", options.RankPreset);
+        Assert.AreEqual(4, options.Threads);
+        Assert.AreEqual(60.0, options.MaxTimeSeconds);
+        Assert.AreEqual(6000, options.MaxSimulations);
+        Assert.AreEqual(3, options.PnLevel);
+        Assert.AreEqual(0.75, options.PnWeight);
+        Assert.AreEqual(1.0, options.VnMixRate);
     }
 
     [TestMethod]
@@ -34,6 +41,7 @@ public sealed class ZenGtpOptionsTests
         File.WriteAllText(
             configPath,
             """
+            mode = advanced
             zenDll = Zen.dll
             boardSize = 13
             komi = 6.5
@@ -67,6 +75,7 @@ public sealed class ZenGtpOptionsTests
     {
         var configPath = WriteTempConfig("""
             {
+              "mode": "advanced",
               "maxTime": 4.5
             }
             """);
@@ -81,6 +90,7 @@ public sealed class ZenGtpOptionsTests
     {
         var configPath = WriteTempConfig(
             """
+            mode = advanced
             # comment
             zenDll = Zen.dll
             boardSize = 13
@@ -98,6 +108,7 @@ public sealed class ZenGtpOptionsTests
         var options = ZenGtpOptionsLoader.Load(["--config", configPath], Environment.CurrentDirectory);
 
         Assert.AreEqual("Zen.dll", options.ZenDll);
+        Assert.AreEqual("advanced", options.Mode);
         Assert.AreEqual(13, options.BoardSize);
         Assert.AreEqual(6.5, options.Komi);
         Assert.AreEqual(2, options.Threads);
@@ -110,6 +121,29 @@ public sealed class ZenGtpOptionsTests
     }
 
     [TestMethod]
+    public void Load_DefaultCfgTemplate()
+    {
+        var repoRoot = FindRepoRoot();
+        var configPath = Path.Combine(repoRoot, "config", "zen7.cfg");
+
+        var options = ZenGtpOptionsLoader.Load(["--config", configPath], repoRoot);
+
+        Assert.AreEqual("Zen.dll", options.ZenDll);
+        Assert.AreEqual("rank", options.Mode);
+        Assert.AreEqual("9d", options.RankPreset);
+        Assert.AreEqual(19, options.BoardSize);
+        Assert.AreEqual(7.5, options.Komi);
+        Assert.AreEqual(0, options.Handicap);
+        Assert.AreEqual(4, options.Threads);
+        Assert.AreEqual(60.0, options.MaxTimeSeconds);
+        Assert.AreEqual(6000, options.MaxSimulations);
+        Assert.AreEqual(0.1, options.ResignThreshold);
+        Assert.AreEqual(3, options.PnLevel);
+        Assert.AreEqual(0.75, options.PnWeight);
+        Assert.AreEqual(1.0, options.VnMixRate);
+    }
+
+    [TestMethod]
     public void Load_ZhTwCfgTemplate()
     {
         var repoRoot = FindRepoRoot();
@@ -118,16 +152,72 @@ public sealed class ZenGtpOptionsTests
         var options = ZenGtpOptionsLoader.Load(["--config", configPath], repoRoot);
 
         Assert.AreEqual("Zen.dll", options.ZenDll);
+        Assert.AreEqual("rank", options.Mode);
+        Assert.AreEqual("9d", options.RankPreset);
         Assert.AreEqual(19, options.BoardSize);
         Assert.AreEqual(7.5, options.Komi);
         Assert.AreEqual(0, options.Handicap);
-        Assert.AreEqual(1, options.Threads);
-        Assert.AreEqual(1.0, options.MaxTimeSeconds);
-        Assert.AreEqual(100, options.MaxSimulations);
+        Assert.AreEqual(4, options.Threads);
+        Assert.AreEqual(60.0, options.MaxTimeSeconds);
+        Assert.AreEqual(6000, options.MaxSimulations);
         Assert.AreEqual(0.1, options.ResignThreshold);
+        Assert.AreEqual(3, options.PnLevel);
+        Assert.AreEqual(0.75, options.PnWeight);
+        Assert.AreEqual(1.0, options.VnMixRate);
+    }
+
+    [TestMethod]
+    public void Load_CfgRankPresetAppliesNativeGuiTable()
+    {
+        var configPath = WriteTempConfig(
+            """
+            mode = rank
+            rankPreset = 5d
+            threads = 12
+            maxTimeSeconds = 3
+            maxSimulations = 1
+            pnLevel = 0
+            pnWeight = 9
+            vnMixRate = 9
+            """,
+            ".cfg");
+
+        var options = ZenGtpOptionsLoader.Load(["--config", configPath], Environment.CurrentDirectory);
+
+        Assert.AreEqual("rank", options.Mode);
+        Assert.AreEqual("5d", options.RankPreset);
+        Assert.AreEqual(4, options.Threads);
+        Assert.AreEqual(60.0, options.MaxTimeSeconds);
+        Assert.AreEqual(2700, options.MaxSimulations);
         Assert.AreEqual(2, options.PnLevel);
+        Assert.AreEqual(0.55, options.PnWeight);
+        Assert.AreEqual(1.0, options.VnMixRate);
+    }
+
+    [TestMethod]
+    public void Load_CfgFixedTimeAppliesFullStrengthBaseline()
+    {
+        var configPath = WriteTempConfig(
+            """
+            mode = fixed-time
+            threads = 8
+            maxTimeSeconds = 5
+            maxSimulations = 1
+            pnLevel = 0
+            pnWeight = 9
+            vnMixRate = 9
+            """,
+            ".cfg");
+
+        var options = ZenGtpOptionsLoader.Load(["--config", configPath], Environment.CurrentDirectory);
+
+        Assert.AreEqual("fixed-time", options.Mode);
+        Assert.AreEqual(8, options.Threads);
+        Assert.AreEqual(5.0, options.MaxTimeSeconds);
+        Assert.AreEqual(1_000_000, options.MaxSimulations);
+        Assert.AreEqual(3, options.PnLevel);
         Assert.AreEqual(1.0, options.PnWeight);
-        Assert.AreEqual(0.55, options.VnMixRate);
+        Assert.AreEqual(0.75, options.VnMixRate);
     }
 
     [TestMethod]
