@@ -441,7 +441,7 @@ public sealed class GtpSession
             IReadOnlyList<GtpAnalysisMove> moves;
             lock (_engineLock)
             {
-                moves = _engine.Analyze(color, AnalysisCandidateCount);
+                moves = _engine.Analyze(color, AnalysisCandidateCount, CancellationToken.None);
             }
 
             return AnalysisSuccess(command, FormatLzAnalysis(moves));
@@ -464,7 +464,7 @@ public sealed class GtpSession
             IReadOnlyList<GtpAnalysisMove> moves;
             lock (_engineLock)
             {
-                moves = _engine.Analyze(color, AnalysisCandidateCount);
+                moves = _engine.Analyze(color, AnalysisCandidateCount, CancellationToken.None);
             }
 
             return AnalysisSuccess(command, FormatKataAnalysis(moves));
@@ -576,7 +576,7 @@ public sealed class GtpSession
                     return;
                 }
 
-                moves = _engine.Analyze(color, AnalysisCandidateCount);
+                moves = _engine.Analyze(color, AnalysisCandidateCount, cancellationToken);
             }
 
             if (cancellationToken.IsCancellationRequested)
@@ -610,12 +610,11 @@ public sealed class GtpSession
         }
 
         cancellation.Cancel();
-        if (thread is not null && thread.IsAlive)
+        var joined = thread is null || !thread.IsAlive || thread.Join(TimeSpan.FromSeconds(5));
+        if (joined)
         {
-            thread.Join(TimeSpan.FromSeconds(5));
+            cancellation.Dispose();
         }
-
-        cancellation.Dispose();
     }
 
     private static StoneColor ParseColor(string value)

@@ -181,17 +181,18 @@ public sealed class ZenEngine : IGtpEngine, IDisposable
         return move;
     }
 
-    public IReadOnlyList<GtpAnalysisMove> Analyze(StoneColor color, int maxCandidates)
+    public IReadOnlyList<GtpAnalysisMove> Analyze(StoneColor color, int maxCandidates, CancellationToken cancellationToken)
     {
         if (maxCandidates <= 0)
         {
             throw new ArgumentOutOfRangeException(nameof(maxCandidates), "Analysis candidate count must be positive.");
         }
 
+        cancellationToken.ThrowIfCancellationRequested();
         var candidateCount = Math.Min(maxCandidates, 10);
         var zenColor = (int)color;
         _native.SetNextColor(zenColor);
-        var moves = ThinkUntilAnalysisMoves(zenColor, candidateCount);
+        var moves = ThinkUntilAnalysisMoves(zenColor, candidateCount, cancellationToken);
         return moves.Count > 0 ? moves : ReadAnalysisMoves(candidateCount);
     }
 
@@ -351,7 +352,10 @@ public sealed class ZenEngine : IGtpEngine, IDisposable
         return topMove.Playouts > 0 ? topMove : _native.GetTopMoveInfo(0);
     }
 
-    private IReadOnlyList<GtpAnalysisMove> ThinkUntilAnalysisMoves(int zenColor, int candidateCount)
+    private IReadOnlyList<GtpAnalysisMove> ThinkUntilAnalysisMoves(
+        int zenColor,
+        int candidateCount,
+        CancellationToken cancellationToken)
     {
         IReadOnlyList<GtpAnalysisMove> moves = [];
         _native.StartThinking(zenColor);
@@ -361,7 +365,11 @@ public sealed class ZenEngine : IGtpEngine, IDisposable
             var deadline = DateTime.UtcNow.AddSeconds(Math.Max(0.1, _maxTime) + 0.5);
             while (DateTime.UtcNow < deadline)
             {
-                Thread.Sleep(100);
+                if (cancellationToken.WaitHandle.WaitOne(100))
+                {
+                    break;
+                }
+
                 var currentMoves = ReadAnalysisMoves(candidateCount);
                 if (currentMoves.Count > 0)
                 {

@@ -329,6 +329,59 @@ public sealed class GtpSessionTests
     }
 
     [TestMethod]
+    public void Execute_Stop_CancelsBackgroundAnalysisBeforeReturning()
+    {
+        var engine = new FakeGtpEngine { BlockAnalyzeUntilCanceled = true };
+        var session = new GtpSession(engine, _ => { });
+
+        Execute("kata-analyze b 10", session);
+        Assert.IsTrue(engine.WaitForAnalyzeStarted());
+
+        var result = Execute("stop", session);
+
+        Assert.AreEqual("=\n\n", result.Response.Format());
+        Assert.IsTrue(engine.LastAnalyzeCancellationRequested);
+    }
+
+    [TestMethod]
+    public void Execute_Play_CancelsBackgroundAnalysisBeforeMove()
+    {
+        var engine = new FakeGtpEngine { BlockAnalyzeUntilCanceled = true };
+        var session = new GtpSession(engine, _ => { });
+
+        Execute("kata-analyze b 10", session);
+        Assert.IsTrue(engine.WaitForAnalyzeStarted());
+
+        var result = Execute("play b D16", session);
+
+        Assert.AreEqual("=\n\n", result.Response.Format());
+        Assert.IsTrue(engine.LastAnalyzeCancellationRequested);
+        CollectionAssert.AreEqual(new[] { "Analyze:Black:10", "Play:Black:D16" }, engine.Calls);
+    }
+
+    [DataTestMethod]
+    [DataRow("clear_board", "ClearBoard")]
+    [DataRow("undo", "Undo:1")]
+    [DataRow("quit", null)]
+    public void Execute_BoardChangeOrQuit_CancelsBackgroundAnalysis(string command, string? expectedCall)
+    {
+        var engine = new FakeGtpEngine { BlockAnalyzeUntilCanceled = true };
+        var session = new GtpSession(engine, _ => { });
+
+        Execute("kata-analyze b 10", session);
+        Assert.IsTrue(engine.WaitForAnalyzeStarted());
+
+        var result = Execute(command, session);
+
+        Assert.AreEqual("=\n\n", result.Response.Format());
+        Assert.IsTrue(engine.LastAnalyzeCancellationRequested);
+        if (expectedCall is not null)
+        {
+            CollectionAssert.Contains(engine.Calls, expectedCall);
+        }
+    }
+
+    [TestMethod]
     public void Execute_KataGetParam_ReturnsCompatibilityValue()
     {
         var result = Execute("kata-get-param analysisWideRootNoise");
@@ -530,49 +583,68 @@ public sealed class GtpSessionTests
 
         public IReadOnlyList<GtpAnalysisMove> AnalysisMoves { get; init; } = [];
 
-        public string[] Calls => _calls.ToArray();
+        public bool BlockAnalyzeUntilCanceled { get; init; }
+
+        public bool LastAnalyzeCancellationRequested { get; private set; }
+
+        public string[] Calls
+        {
+            get
+            {
+                lock (_calls)
+                {
+                    return _calls.ToArray();
+                }
+            }
+        }
 
         private readonly List<string> _calls = [];
+        private readonly ManualResetEventSlim _analyzeStarted = new();
+
+        public bool WaitForAnalyzeStarted()
+        {
+            return _analyzeStarted.Wait(TimeSpan.FromSeconds(2));
+        }
 
         public void SetBoardSize(int boardSize)
         {
             BoardSize = boardSize;
             LastSearchInfo = null;
-            _calls.Add($"SetBoardSize:{boardSize}");
+            AddCall($"SetBoardSize:{boardSize}");
         }
 
         public void ClearBoard()
         {
             LastSearchInfo = null;
-            _calls.Add("ClearBoard");
+            AddCall("ClearBoard");
         }
 
         public void SetKomi(double komi)
         {
             Komi = komi;
-            _calls.Add($"SetKomi:{komi}");
+            AddCall($"SetKomi:{komi}");
         }
 
         public void SetNextColor(StoneColor color)
         {
-            _calls.Add($"SetNextColor:{color}");
+            AddCall($"SetNextColor:{color}");
         }
 
         public void SetMaxTime(double seconds)
         {
             MaxTime = seconds;
-            _calls.Add($"SetMaxTime:{seconds}");
+            AddCall($"SetMaxTime:{seconds}");
         }
 
         public void SetTimeSettings(double mainTime, double byoyomiTime, int periods)
         {
             MaxTime = byoyomiTime > 0 ? byoyomiTime : mainTime;
-            _calls.Add($"SetTimeSettings:{mainTime}:{byoyomiTime}:{periods}");
+            AddCall($"SetTimeSettings:{mainTime}:{byoyomiTime}:{periods}");
         }
 
         public void SetTimeLeft(StoneColor color, double time, int stones)
         {
-            _calls.Add($"SetTimeLeft:{color}:{time}:{stones}");
+            AddCall($"SetTimeLeft:{color}:{time}:{stones}");
         }
 
         public bool Play(StoneColor color, GtpMove move)
@@ -585,22 +657,32 @@ public sealed class GtpSessionTests
                 : move.IsPass
                     ? "pass"
                     : "resign";
-            _calls.Add($"Play:{color}:{moveText}");
+            AddCall($"Play:{color}:{moveText}");
             return true;
         }
 
         public GtpMove GenMove(StoneColor color)
         {
             LastGenMoveColor = color;
-            _calls.Add($"GenMove:{color}");
+            AddCall($"GenMove:{color}");
             LastSearchInfo = NextSearchInfo;
             return NextGeneratedMove;
         }
 
-        public IReadOnlyList<GtpAnalysisMove> Analyze(StoneColor color, int maxCandidates)
+        public IReadOnlyList<GtpAnalysisMove> Analyze(
+            StoneColor color,
+            int maxCandidates,
+            CancellationToken cancellationToken)
         {
             LastAnalyzeColor = color;
-            _calls.Add($"Analyze:{color}:{maxCandidates}");
+            AddCall($"Analyze:{color}:{maxCandidates}");
+            _analyzeStarted.Set();
+            if (BlockAnalyzeUntilCanceled)
+            {
+                cancellationToken.WaitHandle.WaitOne(TimeSpan.FromSeconds(5));
+                LastAnalyzeCancellationRequested = cancellationToken.IsCancellationRequested;
+            }
+
             return AnalysisMoves.Take(maxCandidates).ToArray();
         }
 
@@ -608,14 +690,22 @@ public sealed class GtpSessionTests
         {
             LastUndoCount = count;
             LastSearchInfo = null;
-            _calls.Add($"Undo:{count}");
+            AddCall($"Undo:{count}");
             return true;
         }
 
         public string EstimateFinalScore()
         {
-            _calls.Add("EstimateFinalScore");
+            AddCall("EstimateFinalScore");
             return FinalScore;
+        }
+
+        private void AddCall(string call)
+        {
+            lock (_calls)
+            {
+                _calls.Add(call);
+            }
         }
     }
 }

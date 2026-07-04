@@ -30,7 +30,7 @@ info move Q16 visits 1700 winrate 5342 pv Q16 D4
 
 Current limitations:
 
-- `stop` requests cancellation of the background stream. If Zen native search is currently inside one search cycle, cancellation completes after that cycle returns.
+- `stop` requests cancellation of the background stream and interrupts the active Zen analysis loop. Native cleanup still depends on `ZenStopThinking` returning.
 - Candidate coordinates, playouts, winrate, and PV text come from `ZenGetTopMoveInfo(index)`.
 - `scoreLead`, `scoreMean`, and `prior` are compatibility placeholders because Zen7 does not currently expose equivalent reliable values through the wrapped API.
 - For LizzieYzy Next multi-candidate display, use `gtpName = KataGo` in `zen7.cfg`; this only changes the GTP `name` response.

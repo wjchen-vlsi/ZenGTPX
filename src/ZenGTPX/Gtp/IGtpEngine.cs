@@ -28,7 +28,7 @@ public interface IGtpEngine
 
     GtpMove GenMove(StoneColor color);
 
-    IReadOnlyList<GtpAnalysisMove> Analyze(StoneColor color, int maxCandidates);
+    IReadOnlyList<GtpAnalysisMove> Analyze(StoneColor color, int maxCandidates, CancellationToken cancellationToken);
 
     bool Undo(int count);
 
