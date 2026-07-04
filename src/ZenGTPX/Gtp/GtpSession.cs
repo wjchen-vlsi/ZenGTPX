@@ -385,9 +385,9 @@ public sealed class GtpSession
         var time = double.Parse(command.Arguments[1], CultureInfo.InvariantCulture);
         var stones = int.Parse(command.Arguments[2], CultureInfo.InvariantCulture);
 
-        if (time < 0)
+        if (time < 0 || stones < 0)
         {
-            return Error(command, "time_left time must not be negative");
+            return Error(command, "time_left values must not be negative");
         }
 
         lock (_engineLock)

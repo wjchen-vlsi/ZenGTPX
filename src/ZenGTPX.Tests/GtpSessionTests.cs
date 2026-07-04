@@ -709,6 +709,27 @@ public sealed class GtpSessionTests
     }
 
     [TestMethod]
+    public void Execute_TimeSettings_AllowsZeroSettings()
+    {
+        var engine = new FakeGtpEngine();
+        var result = Execute("time_settings 0 0 0", engine);
+
+        Assert.AreEqual("=\n\n", result.Response.Format());
+        Assert.AreEqual(0.0, engine.MaxTime);
+        CollectionAssert.Contains(engine.Calls, "SetTimeSettings:0:0:0");
+    }
+
+    [TestMethod]
+    public void Execute_TimeSettings_RejectsNegativeValuesBeforeEngineCall()
+    {
+        var engine = new FakeGtpEngine();
+        var result = Execute("time_settings 60 -1 3", engine);
+
+        Assert.AreEqual("? time_settings values must not be negative\n\n", result.Response.Format());
+        CollectionAssert.AreEqual(Array.Empty<string>(), engine.Calls);
+    }
+
+    [TestMethod]
     public void Execute_TimeLeft_ForwardsToEngine()
     {
         var engine = new FakeGtpEngine();
@@ -716,6 +737,69 @@ public sealed class GtpSessionTests
 
         Assert.AreEqual("=\n\n", result.Response.Format());
         CollectionAssert.Contains(engine.Calls, "SetTimeLeft:Black:10:5");
+    }
+
+    [TestMethod]
+    public void Execute_TimeLeft_AllowsZeroStones()
+    {
+        var engine = new FakeGtpEngine();
+        var result = Execute("time_left w 0 0", engine);
+
+        Assert.AreEqual("=\n\n", result.Response.Format());
+        CollectionAssert.Contains(engine.Calls, "SetTimeLeft:White:0:0");
+    }
+
+    [TestMethod]
+    public void Execute_TimeLeft_RejectsNegativeValuesBeforeEngineCall()
+    {
+        var engine = new FakeGtpEngine();
+        var result = Execute("time_left b 10 -1", engine);
+
+        Assert.AreEqual("? time_left values must not be negative\n\n", result.Response.Format());
+        CollectionAssert.AreEqual(Array.Empty<string>(), engine.Calls);
+    }
+
+    [TestMethod]
+    public void Execute_TimeLeft_CanBeUpdatedMultipleTimes()
+    {
+        var engine = new FakeGtpEngine();
+        var session = new GtpSession(engine);
+
+        Execute("time_left b 30 5", session);
+        var result = Execute("time_left b 20 4", session);
+
+        Assert.AreEqual("=\n\n", result.Response.Format());
+        CollectionAssert.AreEqual(
+            new[]
+            {
+                "SetTimeLeft:Black:30:5",
+                "SetTimeLeft:Black:20:4",
+            },
+            engine.Calls);
+    }
+
+    [TestMethod]
+    public void Execute_TimeSettingsThenGenMove_ReturnsMove()
+    {
+        var engine = new FakeGtpEngine
+        {
+            NextGeneratedMove = GtpMove.Play(new BoardCoordinate(3, 3)),
+        };
+        var session = new GtpSession(engine);
+
+        Execute("time_settings 60 10 3", session);
+        Execute("time_left b 10 5", session);
+        var result = Execute("genmove b", session);
+
+        Assert.AreEqual("= D16\n\n", result.Response.Format());
+        CollectionAssert.AreEqual(
+            new[]
+            {
+                "SetTimeSettings:60:10:3",
+                "SetTimeLeft:Black:10:5",
+                "GenMove:Black",
+            },
+            engine.Calls);
     }
 
     [TestMethod]
