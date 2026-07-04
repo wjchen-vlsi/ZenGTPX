@@ -6,6 +6,7 @@
 - Support `fixed_handicap` and `place_free_handicap` GTP commands with deterministic standard star-point placement.
 - Forward GTP `time_settings` and `time_left` to Zen native time APIs while preserving the wrapper move deadline.
 - Return a Zen territory-statistics based area-score estimate for `final_score`.
+- Return empty compatibility lists for `final_status_list alive/dead/seki`.
 - Support first-pass background streaming `lz-analyze` and `kata-analyze` GTP analysis commands backed by `ZenGetTopMoveInfo`.
 - Support minimal KataGo GTP compatibility commands needed by LizzieYzy Next analysis probing.
 - Support `set_free_handicap` as a GTP-compatible free handicap placement command.

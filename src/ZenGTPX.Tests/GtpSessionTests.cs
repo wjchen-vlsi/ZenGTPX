@@ -80,6 +80,14 @@ public sealed class GtpSessionTests
     }
 
     [TestMethod]
+    public void Execute_KnownCommand_FinalStatusList()
+    {
+        var result = Execute("known_command final_status_list");
+
+        Assert.AreEqual("= true\n\n", result.Response.Format());
+    }
+
+    [TestMethod]
     public void Execute_KnownCommand_LastSearchInfo()
     {
         var result = Execute("known_command zengtp_last_search_info");
@@ -145,6 +153,7 @@ public sealed class GtpSessionTests
                 "time_left",
                 "showboard",
                 "final_score",
+                "final_status_list",
                 "zengtp_final_score_detail",
                 "stop",
                 "lz-analyze",
@@ -914,6 +923,33 @@ public sealed class GtpSessionTests
         var result = Execute("final_score", engine);
 
         Assert.AreEqual("= B+3.5\n\n", result.Response.Format());
+    }
+
+    [DataTestMethod]
+    [DataRow("alive")]
+    [DataRow("dead")]
+    [DataRow("seki")]
+    public void Execute_FinalStatusList_ReturnsEmptyCompatibilityList(string status)
+    {
+        var result = Execute($"final_status_list {status}");
+
+        Assert.AreEqual("=\n\n", result.Response.Format());
+    }
+
+    [TestMethod]
+    public void Execute_FinalStatusList_RejectsMissingStatus()
+    {
+        var result = Execute("final_status_list");
+
+        Assert.AreEqual("? final_status_list requires one status argument\n\n", result.Response.Format());
+    }
+
+    [TestMethod]
+    public void Execute_FinalStatusList_RejectsUnsupportedStatus()
+    {
+        var result = Execute("final_status_list dame");
+
+        Assert.AreEqual("? final_status_list status must be alive, dead, or seki\n\n", result.Response.Format());
     }
 
     [TestMethod]

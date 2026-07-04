@@ -117,6 +117,30 @@ Compatibility notes:
 - `captureAdjustedEstimate` is exposed only to help inspect prisoner counters and should not be treated as an official Japanese, Chinese, or territory scoring result.
 - A complete final-score adjudicator would still need explicit rules, dead-stone handling, pass/end-state policy, and scoring validation.
 
+## `final_status_list`
+
+ZenGTPX accepts:
+
+- `final_status_list alive`
+- `final_status_list dead`
+- `final_status_list seki`
+
+Each currently returns an empty successful response:
+
+```text
+final_status_list dead
+=
+```
+
+This is a compatibility stub for GTP clients that query final stone status near the end of a game.
+It does not mean ZenGTPX has reliable dead-stone or seki adjudication.
+
+Compatibility notes:
+
+- The command is advertised by `list_commands` to avoid `unknown command` behavior in clients that probe it.
+- The empty list is intentionally conservative: ZenGTPX does not invent dead/alive status data that Zen7 does not expose through the wrapped API.
+- Full final-status support remains tied to the unresolved complete final scoring work.
+
 ## `zengtp_policy [count]`
 
 Returns the top positive Zen policy knowledge points for the current board.

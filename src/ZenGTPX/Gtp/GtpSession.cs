@@ -28,6 +28,7 @@ public sealed class GtpSession
         "time_left",
         "showboard",
         "final_score",
+        "final_status_list",
         "zengtp_final_score_detail",
         "stop",
         "lz-analyze",
@@ -91,6 +92,7 @@ public sealed class GtpSession
                 "time_left" => TimeLeft(command),
                 "showboard" => ShowBoard(command),
                 "final_score" => FinalScore(command),
+                "final_status_list" => FinalStatusList(command),
                 "zengtp_final_score_detail" => FinalScoreDetail(command),
                 "stop" => Stop(command),
                 "lz-analyze" => LzAnalyze(command),
@@ -426,6 +428,20 @@ public sealed class GtpSession
         {
             return Success(command, _engine.EstimateFinalScore());
         }
+    }
+
+    private GtpExecutionResult FinalStatusList(GtpCommand command)
+    {
+        if (command.Arguments.Count != 1)
+        {
+            return Error(command, "final_status_list requires one status argument");
+        }
+
+        return command.Arguments[0].ToLowerInvariant() switch
+        {
+            "alive" or "dead" or "seki" => Success(command, ""),
+            _ => Error(command, "final_status_list status must be alive, dead, or seki"),
+        };
     }
 
     private GtpExecutionResult FinalScoreDetail(GtpCommand command)

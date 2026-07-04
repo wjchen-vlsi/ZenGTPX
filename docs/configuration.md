@@ -110,6 +110,7 @@ These are used directly only with `mode = advanced`; `mode = rank` and `mode = f
 - `gtpName = KataGo` does not mean ZenGTPX supports KataGo `analysis` JSON protocol.
 - `time_settings` / `time_left` are forwarded to Zen native time API where supported; `time_settings` also updates the wrapper's per-move deadline.
 - `final_score` returns an area-score estimate from Zen territory statistics, not a full ruleset adjudication.
+- `final_status_list alive|dead|seki` is a compatibility stub that returns an empty list; ZenGTPX does not currently provide reliable dead-stone adjudication.
 - `zengtp_final_score_detail` returns the estimate breakdown for scripts and diagnostics, including territory-derived area counts, prisoner counters, and a clearly labeled capture-adjusted diagnostic estimate.
 - Config `handicap` is a passive game parameter. It does not place stones or change board state by itself.
 - Actual handicap placement remains controlled by GTP `fixed_handicap`, `set_free_handicap`, or `place_free_handicap`.
