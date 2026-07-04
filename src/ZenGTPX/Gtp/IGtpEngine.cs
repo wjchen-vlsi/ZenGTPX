@@ -30,6 +30,10 @@ public interface IGtpEngine
 
     IReadOnlyList<GtpAnalysisMove> Analyze(StoneColor color, int maxCandidates, CancellationToken cancellationToken);
 
+    IReadOnlyList<GtpPolicyPoint> GetPolicy(int count);
+
+    int[,] GetTerritoryStatistics();
+
     bool Undo(int count);
 
     string EstimateFinalScore();

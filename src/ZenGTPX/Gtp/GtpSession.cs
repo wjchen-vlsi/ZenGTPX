@@ -36,6 +36,8 @@ public sealed class GtpSession
         "kata-get-rules",
         "kata-time_settings",
         "zengtp_last_search_info",
+        "zengtp_policy",
+        "zengtp_territory",
         "quit",
     ];
 
@@ -95,6 +97,8 @@ public sealed class GtpSession
                 "kata-get-rules" => KataGetRules(command),
                 "kata-time_settings" => KataTimeSettings(command),
                 "zengtp_last_search_info" => LastSearchInfo(command),
+                "zengtp_policy" => Policy(command),
+                "zengtp_territory" => Territory(command),
                 "quit" => Quit(command),
                 _ => Error(command, "unknown command"),
             };
@@ -417,6 +421,52 @@ public sealed class GtpSession
                 $"move {FormatMove(searchInfo.Move)} playouts {searchInfo.Playouts} winrate {searchInfo.Winrate:0.0000} time {searchInfo.TimeSeconds:0.000}"));
     }
 
+    private GtpExecutionResult Policy(GtpCommand command)
+    {
+        if (command.Arguments.Count > 1)
+        {
+            return Error(command, "zengtp_policy accepts at most one count argument");
+        }
+
+        var count = 20;
+        if (command.Arguments.Count == 1 &&
+            !int.TryParse(command.Arguments[0], NumberStyles.Integer, CultureInfo.InvariantCulture, out count))
+        {
+            return Error(command, "zengtp_policy count must be an integer");
+        }
+
+        if (count <= 0)
+        {
+            return Error(command, "zengtp_policy count must be positive");
+        }
+
+        StopAnalysis();
+        IReadOnlyList<GtpPolicyPoint> points;
+        lock (_engineLock)
+        {
+            points = _engine.GetPolicy(count);
+        }
+
+        return Success(command, FormatPolicy(points));
+    }
+
+    private GtpExecutionResult Territory(GtpCommand command)
+    {
+        if (command.Arguments.Count != 0)
+        {
+            return Error(command, "zengtp_territory does not accept arguments");
+        }
+
+        StopAnalysis();
+        int[,] territory;
+        lock (_engineLock)
+        {
+            territory = _engine.GetTerritoryStatistics();
+        }
+
+        return Success(command, FormatTerritory(territory));
+    }
+
     private GtpExecutionResult Stop(GtpCommand command)
     {
         if (command.Arguments.Count != 0)
@@ -703,6 +753,42 @@ public sealed class GtpSession
                 move => string.Create(
                     CultureInfo.InvariantCulture,
                     $"info move {FormatMove(move.Move)} visits {move.Playouts} winrate {ToLeelaWinrate(move.Winrate)} pv {FormatPrincipalVariation(move)}")));
+    }
+
+    private string FormatPolicy(IReadOnlyList<GtpPolicyPoint> points)
+    {
+        var max = points.Count == 0 ? 0 : points.Max(point => point.Value);
+        var selectedSum = points.Sum(point => point.Value);
+        var lines = new List<string>
+        {
+            string.Create(CultureInfo.InvariantCulture, $"boardSize {_engine.BoardSize} count {points.Count} max {max} selectedSum {selectedSum}"),
+        };
+        lines.AddRange(
+            points.Select(point => string.Create(
+                CultureInfo.InvariantCulture,
+                $"{GtpVertex.Format(point.Coordinate, _engine.BoardSize)} {point.Value} {point.Normalized:0.0000}")));
+        return string.Join('\n', lines);
+    }
+
+    private string FormatTerritory(int[,] territory)
+    {
+        var lines = new List<string>
+        {
+            string.Create(CultureInfo.InvariantCulture, $"boardSize {_engine.BoardSize}"),
+        };
+
+        for (var y = 0; y < _engine.BoardSize; y++)
+        {
+            var row = new string[_engine.BoardSize];
+            for (var x = 0; x < _engine.BoardSize; x++)
+            {
+                row[x] = territory[y, x].ToString(CultureInfo.InvariantCulture);
+            }
+
+            lines.Add(string.Join(' ', row));
+        }
+
+        return string.Join('\n', lines);
     }
 
     private string FormatPrincipalVariation(GtpAnalysisMove move)

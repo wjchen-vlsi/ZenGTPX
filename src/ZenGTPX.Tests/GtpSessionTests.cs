@@ -80,6 +80,22 @@ public sealed class GtpSessionTests
     }
 
     [TestMethod]
+    public void Execute_KnownCommand_Policy()
+    {
+        var result = Execute("known_command zengtp_policy");
+
+        Assert.AreEqual("= true\n\n", result.Response.Format());
+    }
+
+    [TestMethod]
+    public void Execute_KnownCommand_Territory()
+    {
+        var result = Execute("known_command zengtp_territory");
+
+        Assert.AreEqual("= true\n\n", result.Response.Format());
+    }
+
+    [TestMethod]
     public void Execute_KnownCommand_KataAnalyze()
     {
         var result = Execute("known_command kata-analyze");
@@ -121,6 +137,8 @@ public sealed class GtpSessionTests
                 "kata-get-rules",
                 "kata-time_settings",
                 "zengtp_last_search_info",
+                "zengtp_policy",
+                "zengtp_territory",
                 "quit",
             },
             result.Response.Body.Split('\n'));
@@ -409,6 +427,96 @@ public sealed class GtpSessionTests
     }
 
     [TestMethod]
+    public void Execute_Policy_ReturnsDefaultTopPolicyPoints()
+    {
+        var engine = new FakeGtpEngine
+        {
+            PolicyPoints =
+            [
+                new GtpPolicyPoint(new BoardCoordinate(15, 3), 1000, 0.5),
+                new GtpPolicyPoint(new BoardCoordinate(3, 15), 500, 0.25),
+            ],
+        };
+
+        var result = Execute("zengtp_policy", engine);
+
+        Assert.AreEqual("= boardSize 19 count 2 max 1000 selectedSum 1500\nQ16 1000 0.5000\nD4 500 0.2500\n\n", result.Response.Format());
+        Assert.AreEqual(20, engine.LastPolicyCount);
+    }
+
+    [TestMethod]
+    public void Execute_Policy_UsesRequestedCount()
+    {
+        var engine = new FakeGtpEngine
+        {
+            PolicyPoints =
+            [
+                new GtpPolicyPoint(new BoardCoordinate(15, 3), 1000, 0.5),
+            ],
+        };
+
+        var result = Execute("zengtp_policy 1", engine);
+
+        Assert.AreEqual("= boardSize 19 count 1 max 1000 selectedSum 1000\nQ16 1000 0.5000\n\n", result.Response.Format());
+        Assert.AreEqual(1, engine.LastPolicyCount);
+    }
+
+    [TestMethod]
+    public void Execute_Policy_RejectsInvalidCount()
+    {
+        var result = Execute("zengtp_policy 0");
+
+        Assert.AreEqual("? zengtp_policy count must be positive\n\n", result.Response.Format());
+    }
+
+    [TestMethod]
+    public void Execute_Policy_RejectsNonIntegerCount()
+    {
+        var result = Execute("zengtp_policy abc");
+
+        Assert.AreEqual("? zengtp_policy count must be an integer\n\n", result.Response.Format());
+    }
+
+    [TestMethod]
+    public void Execute_Policy_ReturnsBoardSizeLimitError()
+    {
+        var engine = new FakeGtpEngine { ThrowPolicyBoardSizeLimit = true };
+        var result = Execute("zengtp_policy", engine);
+
+        Assert.AreEqual("? policy diagnostics are supported only up to board size 19.\n\n", result.Response.Format());
+    }
+
+    [TestMethod]
+    public void Execute_Territory_ReturnsMatrix()
+    {
+        var engine = new FakeGtpEngine { BoardSizeOverride = 3 };
+        engine.Territory[0, 0] = 1;
+        engine.Territory[1, 1] = -2;
+        engine.Territory[2, 2] = 3;
+
+        var result = Execute("zengtp_territory", engine);
+
+        Assert.AreEqual("= boardSize 3\n1 0 0\n0 -2 0\n0 0 3\n\n", result.Response.Format());
+    }
+
+    [TestMethod]
+    public void Execute_Territory_RejectsArguments()
+    {
+        var result = Execute("zengtp_territory 1");
+
+        Assert.AreEqual("? zengtp_territory does not accept arguments\n\n", result.Response.Format());
+    }
+
+    [TestMethod]
+    public void Execute_Territory_ReturnsBoardSizeLimitError()
+    {
+        var engine = new FakeGtpEngine { ThrowTerritoryBoardSizeLimit = true };
+        var result = Execute("zengtp_territory", engine);
+
+        Assert.AreEqual("? territory diagnostics are supported only up to board size 19.\n\n", result.Response.Format());
+    }
+
+    [TestMethod]
     public void Execute_Undo()
     {
         var engine = new FakeGtpEngine();
@@ -574,7 +682,11 @@ public sealed class GtpSessionTests
 
     private sealed class FakeGtpEngine : IGtpEngine
     {
-        public int BoardSize { get; private set; } = 19;
+        public int BoardSize => BoardSizeOverride ?? _boardSize;
+
+        public int? BoardSizeOverride { get; init; }
+
+        private int _boardSize = 19;
 
         public string GtpName { get; init; } = "ZenGTPX";
 
@@ -602,6 +714,16 @@ public sealed class GtpSessionTests
 
         public IReadOnlyList<GtpAnalysisMove> AnalysisMoves { get; init; } = [];
 
+        public IReadOnlyList<GtpPolicyPoint> PolicyPoints { get; init; } = [];
+
+        public int LastPolicyCount { get; private set; }
+
+        public int[,] Territory { get; } = new int[19, 19];
+
+        public bool ThrowPolicyBoardSizeLimit { get; init; }
+
+        public bool ThrowTerritoryBoardSizeLimit { get; init; }
+
         public bool BlockAnalyzeUntilCanceled { get; init; }
 
         public bool LastAnalyzeCancellationRequested { get; private set; }
@@ -627,7 +749,7 @@ public sealed class GtpSessionTests
 
         public void SetBoardSize(int boardSize)
         {
-            BoardSize = boardSize;
+            _boardSize = boardSize;
             LastSearchInfo = null;
             AddCall($"SetBoardSize:{boardSize}");
         }
@@ -703,6 +825,29 @@ public sealed class GtpSessionTests
             }
 
             return AnalysisMoves.Take(maxCandidates).ToArray();
+        }
+
+        public IReadOnlyList<GtpPolicyPoint> GetPolicy(int count)
+        {
+            if (ThrowPolicyBoardSizeLimit)
+            {
+                throw new InvalidOperationException("policy diagnostics are supported only up to board size 19.");
+            }
+
+            LastPolicyCount = count;
+            AddCall($"GetPolicy:{count}");
+            return PolicyPoints.Take(count).ToArray();
+        }
+
+        public int[,] GetTerritoryStatistics()
+        {
+            if (ThrowTerritoryBoardSizeLimit)
+            {
+                throw new InvalidOperationException("territory diagnostics are supported only up to board size 19.");
+            }
+
+            AddCall("GetTerritoryStatistics");
+            return Territory;
         }
 
         public bool Undo(int count)

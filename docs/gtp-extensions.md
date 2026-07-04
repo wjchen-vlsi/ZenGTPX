@@ -76,3 +76,72 @@ Compatibility notes:
 - `genmove` remains a standard GTP response and does not include search diagnostics.
 - GUI clients will not receive this information unless they explicitly call this command.
 - `list_commands` advertises this command when it is supported.
+
+## `zengtp_policy [count]`
+
+Returns the top positive Zen policy knowledge points for the current board.
+This command is a ZenGTPX diagnostic extension and is not part of KataGo analysis protocol.
+
+The optional `count` argument must be positive. If omitted, ZenGTPX returns up to 20 points.
+The command stops any active background analysis stream before reading the policy matrix.
+
+Example:
+
+```text
+zengtp_policy 5
+= boardSize 9 count 5 max 1000 selectedSum 4301
+D6 1000 0.0700
+F6 906 0.0635
+D4 874 0.0612
+F3 779 0.0546
+F4 742 0.0520
+```
+
+Response fields:
+
+| Field | Description |
+| --- | --- |
+| `boardSize` | Current board size. |
+| `count` | Number of returned points. |
+| `max` | Highest returned raw policy value. |
+| `selectedSum` | Sum of raw policy values in the returned top-N point set. |
+
+Each following line is:
+
+```text
+<vertex> <rawValue> <normalized>
+```
+
+`rawValue` comes from `ZenGetPolicyKnowledge`.
+`normalized` is the point's positive policy value divided by all positive policy values on the current board.
+It is useful as a relative heatmap value, but it is not guaranteed to match KataGo neural policy prior semantics.
+
+The wrapped Zen API exposes a 19x19 policy matrix, so this command is supported only up to board size 19.
+
+## `zengtp_territory`
+
+Returns the current `ZenGetTerritoryStatictics` matrix.
+This command is a ZenGTPX diagnostic extension and is not part of KataGo ownership analysis.
+
+Example:
+
+```text
+zengtp_territory
+= boardSize 9
+8 -1 -4 -7 1 -3 9 4 8
+7 0 9 7 -1 -1 1 11 5
+-1 5 2 7 -3 -7 -19 -17 -1
+0 -16 -13 -19 -17 -36 -29 -28 -7
+-1 -8 -26 0 -31 -45 -43 -20 -20
+10 7 -16 -3 -16 -66 -28 -13 -14
+20 -11 1 -8 -69 -34 -46 -11 -13
+19 5 12 -19 -55 -57 -41 -24 -12
+28 8 -1 -4 -39 -36 -26 -19 -3
+```
+
+The response contains one row per board row, from top to bottom, and each row contains one integer per board column, from left to right.
+Positive and negative values are Zen territory statistics values.
+They are not full final-score adjudication, not KataGo ownership values, and are not used as true `scoreLead` or `scoreMean`.
+
+The command takes no arguments and stops any active background analysis stream before reading the territory matrix.
+The wrapped Zen API exposes a 19x19 territory matrix, so this command is supported only up to board size 19.

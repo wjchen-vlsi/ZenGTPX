@@ -212,6 +212,58 @@ public sealed class ZenEngine : IGtpEngine, IDisposable
         return result;
     }
 
+    public IReadOnlyList<GtpPolicyPoint> GetPolicy(int count)
+    {
+        if (count <= 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(count), "Policy point count must be positive.");
+        }
+
+        if (_boardSize > 19)
+        {
+            throw new InvalidOperationException("policy diagnostics are supported only up to board size 19.");
+        }
+
+        var policy = _native.GetPolicyKnowledge();
+        var positiveSum = 0;
+        var points = new List<(BoardCoordinate Coordinate, int Value)>(_boardSize * _boardSize);
+        for (var y = 0; y < _boardSize; y++)
+        {
+            for (var x = 0; x < _boardSize; x++)
+            {
+                var value = policy[y, x];
+                if (value <= 0)
+                {
+                    continue;
+                }
+
+                positiveSum += value;
+                points.Add((new BoardCoordinate(x, y), value));
+            }
+        }
+
+        return points
+            .OrderByDescending(point => point.Value)
+            .ThenBy(point => point.Coordinate.Y)
+            .ThenBy(point => point.Coordinate.X)
+            .Take(count)
+            .Select(point => new GtpPolicyPoint(
+                point.Coordinate,
+                point.Value,
+                positiveSum > 0 ? point.Value / (double)positiveSum : 0.0))
+            .ToArray();
+    }
+
+    public int[,] GetTerritoryStatistics()
+    {
+        if (_boardSize > 19)
+        {
+            throw new InvalidOperationException("territory diagnostics are supported only up to board size 19.");
+        }
+
+        return _native.GetTerritoryStatistics();
+    }
+
     public string EstimateFinalScore()
     {
         if (_boardSize > 19)
