@@ -224,6 +224,33 @@ public sealed class GtpSessionTests
     }
 
     [TestMethod]
+    public void Execute_PlayPass_DoesNotOccupyPoint()
+    {
+        var engine = new FakeGtpEngine();
+        var session = new GtpSession(engine);
+
+        Execute("play b pass", session);
+        var result = Execute("play w D4", session);
+        var showBoard = Execute("showboard", session);
+
+        Assert.AreEqual("=\n\n", result.Response.Format());
+        StringAssert.Contains(showBoard.Response.Body, " 4 . . . O . . . . . . . . . . . . . . . 4");
+    }
+
+    [TestMethod]
+    public void Execute_PlayOccupiedPoint_ReturnsErrorBeforeEngineCall()
+    {
+        var engine = new FakeGtpEngine();
+        var session = new GtpSession(engine);
+
+        Execute("play b D4", session);
+        var result = Execute("play w D4", session);
+
+        Assert.AreEqual("? point D4 is already occupied\n\n", result.Response.Format());
+        CollectionAssert.AreEqual(new[] { "Play:Black:D4" }, engine.Calls);
+    }
+
+    [TestMethod]
     public void Execute_PlayResign_ReturnsError()
     {
         var result = Execute("play b resign");
@@ -244,6 +271,22 @@ public sealed class GtpSessionTests
 
         Assert.AreEqual("= Q16\n\n", result.Response.Format());
         Assert.AreEqual(StoneColor.White, engine.LastGenMoveColor);
+    }
+
+    [TestMethod]
+    public void Execute_GenMoveCoordinate_UpdatesBoardState()
+    {
+        var engine = new FakeGtpEngine
+        {
+            NextGeneratedMove = GtpMove.Play(new BoardCoordinate(15, 3)),
+        };
+        var session = new GtpSession(engine);
+
+        Execute("genmove w", session);
+        var result = Execute("play b Q16", session);
+
+        Assert.AreEqual("? point Q16 is already occupied\n\n", result.Response.Format());
+        CollectionAssert.AreEqual(new[] { "GenMove:White" }, engine.Calls);
     }
 
     [TestMethod]
@@ -578,6 +621,49 @@ public sealed class GtpSessionTests
                 "Play:Black:D4",
             },
             engine.Calls);
+    }
+
+    [TestMethod]
+    public void Execute_PlaceFreeHandicap_RejectsDuplicateVertexBeforeEngineCall()
+    {
+        var engine = new FakeGtpEngine();
+        var result = Execute("place_free_handicap D16 D16", engine);
+
+        Assert.AreEqual("? point D16 is already occupied\n\n", result.Response.Format());
+        CollectionAssert.AreEqual(Array.Empty<string>(), engine.Calls);
+    }
+
+    [TestMethod]
+    public void Execute_FixedHandicap_RejectsOccupiedPointBeforeEngineCall()
+    {
+        var engine = new FakeGtpEngine();
+        var session = new GtpSession(engine);
+
+        Execute("play b D4", session);
+        var result = Execute("fixed_handicap 2", session);
+
+        Assert.AreEqual("? point D4 is already occupied\n\n", result.Response.Format());
+        CollectionAssert.AreEqual(new[] { "Play:Black:D4" }, engine.Calls);
+    }
+
+    [TestMethod]
+    public void Execute_HandicapUndoAndClearBoard_UpdateBoardState()
+    {
+        var engine = new FakeGtpEngine();
+        var session = new GtpSession(engine);
+
+        Execute("fixed_handicap 2", session);
+        var withHandicap = Execute("showboard", session);
+        Execute("undo 2", session);
+        var afterUndo = Execute("showboard", session);
+        Execute("fixed_handicap 2", session);
+        Execute("clear_board", session);
+        var afterClear = Execute("showboard", session);
+
+        StringAssert.Contains(withHandicap.Response.Body, " 4 . . . X . . . . . . . . . . . . . . . 4");
+        StringAssert.Contains(withHandicap.Response.Body, "16 . . . . . . . . . . . . . . . X . . . 16");
+        Assert.IsFalse(afterUndo.Response.Body.Contains('X'));
+        Assert.IsFalse(afterClear.Response.Body.Contains('X'));
     }
 
     [TestMethod]

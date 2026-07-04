@@ -9,6 +9,7 @@
 - Support first-pass background streaming `lz-analyze` and `kata-analyze` GTP analysis commands backed by `ZenGetTopMoveInfo`.
 - Support minimal KataGo GTP compatibility commands needed by LizzieYzy Next analysis probing.
 - Support ZenGTPX diagnostic commands for policy, territory, and final-score estimate breakdowns.
+- Harden GTP lifecycle state handling for occupied moves, generated moves, pass moves, handicap placement, undo, and clear-board flows.
 - Document the version history baseline for ZenGTPX.
 
 ## 0.1.0

@@ -188,6 +188,11 @@ public sealed class GtpSession
             return Error(command, "resign is not valid for play");
         }
 
+        if (move.Coordinate is { } coordinate && _board.IsOccupied(coordinate))
+        {
+            return Error(command, $"point {GtpVertex.Format(coordinate, _engine.BoardSize)} is already occupied");
+        }
+
         StopAnalysis();
         bool played;
         lock (_engineLock)
@@ -259,6 +264,13 @@ public sealed class GtpSession
 
         var count = int.Parse(command.Arguments[0], CultureInfo.InvariantCulture);
         var coordinates = FixedHandicapCoordinates(_engine.BoardSize, count);
+        foreach (var coordinate in coordinates)
+        {
+            if (_board.IsOccupied(coordinate))
+            {
+                return Error(command, $"point {GtpVertex.Format(coordinate, _engine.BoardSize)} is already occupied");
+            }
+        }
 
         foreach (var coordinate in coordinates)
         {
@@ -301,6 +313,11 @@ public sealed class GtpSession
             if (move.IsPass || move.IsResign || move.Coordinate is not { } coordinate)
             {
                 return Error(command, $"invalid handicap vertex: {argument}");
+            }
+
+            if (_board.IsOccupied(coordinate) || coordinates.Contains(coordinate))
+            {
+                return Error(command, $"point {GtpVertex.Format(coordinate, _engine.BoardSize)} is already occupied");
             }
 
             coordinates.Add(coordinate);

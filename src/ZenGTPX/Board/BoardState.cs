@@ -18,6 +18,12 @@ public sealed class BoardState
 
     public StoneColor NextColor => _moves.Count % 2 == 0 ? StoneColor.Black : StoneColor.White;
 
+    public bool IsOccupied(BoardCoordinate coordinate)
+    {
+        ValidateCoordinate(coordinate);
+        return _stones[coordinate.X, coordinate.Y] is not null;
+    }
+
     public void SetBoardSize(int boardSize)
     {
         ValidateBoardSize(boardSize);
