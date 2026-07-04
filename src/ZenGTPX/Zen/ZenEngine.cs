@@ -193,7 +193,7 @@ public sealed class ZenEngine : IGtpEngine, IDisposable
         var zenColor = (int)color;
         _native.SetNextColor(zenColor);
         var moves = ThinkUntilAnalysisMoves(zenColor, candidateCount, cancellationToken);
-        return moves.Count > 0 ? moves : ReadAnalysisMoves(candidateCount);
+        return WithPolicyPriors(moves.Count > 0 ? moves : ReadAnalysisMoves(candidateCount));
     }
 
     public bool Undo(int count)
@@ -420,6 +420,30 @@ public sealed class ZenEngine : IGtpEngine, IDisposable
         }
 
         return moves;
+    }
+
+    private IReadOnlyList<GtpAnalysisMove> WithPolicyPriors(IReadOnlyList<GtpAnalysisMove> moves)
+    {
+        if (moves.Count == 0 || _boardSize > 19)
+        {
+            return moves;
+        }
+
+        var policy = _native.GetPolicyKnowledge();
+        var rawValues = moves
+            .Select(move => move.Move.Coordinate is { } coordinate
+                ? Math.Max(0, policy[coordinate.Y, coordinate.X])
+                : 0)
+            .ToArray();
+        var sum = rawValues.Sum();
+        if (sum <= 0)
+        {
+            return moves;
+        }
+
+        return moves
+            .Select((move, index) => move with { Prior = rawValues[index] / (double)sum })
+            .ToArray();
     }
 
     private GtpMove Pass(int zenColor)

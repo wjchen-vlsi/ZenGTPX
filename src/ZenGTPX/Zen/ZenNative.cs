@@ -11,6 +11,7 @@ internal sealed class ZenNative : IDisposable
     private readonly ZenGetBoardColor _getBoardColor;
     private readonly ZenGetNumBlackPrisoners _getNumBlackPrisoners;
     private readonly ZenGetNumWhitePrisoners _getNumWhitePrisoners;
+    private readonly ZenGetPolicyKnowledge _getPolicyKnowledge;
     private readonly ZenGetTerritoryStatistics _getTerritoryStatistics;
     private readonly ZenGetTopMoveInfo _getTopMoveInfo;
     private readonly ZenInitialize _initialize;
@@ -39,6 +40,7 @@ internal sealed class ZenNative : IDisposable
         ZenGetBoardColor getBoardColor,
         ZenGetNumBlackPrisoners getNumBlackPrisoners,
         ZenGetNumWhitePrisoners getNumWhitePrisoners,
+        ZenGetPolicyKnowledge getPolicyKnowledge,
         ZenGetTerritoryStatistics getTerritoryStatistics,
         ZenGetTopMoveInfo getTopMoveInfo,
         ZenInitialize initialize,
@@ -66,6 +68,7 @@ internal sealed class ZenNative : IDisposable
         _getBoardColor = getBoardColor;
         _getNumBlackPrisoners = getNumBlackPrisoners;
         _getNumWhitePrisoners = getNumWhitePrisoners;
+        _getPolicyKnowledge = getPolicyKnowledge;
         _getTerritoryStatistics = getTerritoryStatistics;
         _getTopMoveInfo = getTopMoveInfo;
         _initialize = initialize;
@@ -114,6 +117,7 @@ internal sealed class ZenNative : IDisposable
                 Get<ZenGetBoardColor>(module, 5, "ZenGetBoardColor"),
                 Get<ZenGetNumBlackPrisoners>(module, 8, "ZenGetNumBlackPrisoners"),
                 Get<ZenGetNumWhitePrisoners>(module, 9, "ZenGetNumWhitePrisoners"),
+                Get<ZenGetPolicyKnowledge>(module, 10, "ZenGetPolicyKnowledge"),
                 Get<ZenGetTerritoryStatistics>(module, 11, "ZenGetTerritoryStatictics"),
                 Get<ZenGetTopMoveInfo>(module, 12, "ZenGetTopMoveInfo"),
                 Get<ZenInitialize>(module, 13, "ZenInitialize"),
@@ -152,6 +156,23 @@ internal sealed class ZenNative : IDisposable
     public int GetNumBlackPrisoners() => _getNumBlackPrisoners();
 
     public int GetNumWhitePrisoners() => _getNumWhitePrisoners();
+
+    public int[,] GetPolicyKnowledge()
+    {
+        var values = new int[19 * 19];
+        _getPolicyKnowledge(values);
+
+        var result = new int[19, 19];
+        for (var y = 0; y < 19; y++)
+        {
+            for (var x = 0; x < 19; x++)
+            {
+                result[y, x] = values[(y * 19) + x];
+            }
+        }
+
+        return result;
+    }
 
     public int[,] GetTerritoryStatistics()
     {
@@ -248,6 +269,9 @@ internal sealed class ZenNative : IDisposable
 
     [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
     private delegate int ZenGetNumWhitePrisoners();
+
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+    private delegate void ZenGetPolicyKnowledge([In, Out] int[] values);
 
     [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
     private delegate void ZenGetTerritoryStatistics([In, Out] int[] values);

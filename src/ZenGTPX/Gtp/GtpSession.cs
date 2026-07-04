@@ -692,7 +692,7 @@ public sealed class GtpSession
             moves.Select(
                 (move, index) => string.Create(
                     CultureInfo.InvariantCulture,
-                    $"info move {FormatMove(move.Move)} visits {move.Playouts} winrate {move.Winrate:0.0000} scoreLead {KataScoreLead(move.Winrate):0.0} scoreMean {KataScoreLead(move.Winrate):0.0} prior {KataPrior(index):0.000} order {index} pv {FormatPrincipalVariation(move)}")));
+                    $"info move {FormatMove(move.Move)} visits {move.Playouts} winrate {move.Winrate:0.0000} scoreLead {KataScoreLead(move.Winrate):0.0} scoreMean {KataScoreLead(move.Winrate):0.0} prior {KataPrior(move, index):0.000} order {index} pv {FormatPrincipalVariation(move)}")));
     }
 
     private string FormatLzAnalysis(IReadOnlyList<GtpAnalysisMove> moves)
@@ -722,8 +722,13 @@ public sealed class GtpSession
         return (winrate - 0.5) * 30.0;
     }
 
-    private static double KataPrior(int order)
+    private static double KataPrior(GtpAnalysisMove move, int order)
     {
+        if (move.Prior is { } prior)
+        {
+            return Math.Clamp(prior, 0.0, 1.0);
+        }
+
         return order switch
         {
             0 => 0.100,

@@ -309,6 +309,25 @@ public sealed class GtpSessionTests
     }
 
     [TestMethod]
+    public void Execute_KataAnalyze_UsesMovePriorWhenAvailable()
+    {
+        var engine = new FakeGtpEngine
+        {
+            AnalysisMoves =
+            [
+                new GtpAnalysisMove(GtpMove.Play(new BoardCoordinate(15, 3)), 1700, 0.53421, "Q16 D4", 0.625),
+                new GtpAnalysisMove(GtpMove.Play(new BoardCoordinate(3, 15)), 850, 0.498, "D4 Q16", 0.375),
+            ],
+        };
+
+        var result = Execute("kata-analyze b 10", engine);
+
+        Assert.AreEqual("=\n\n", result.Response.Format());
+        StringAssert.Contains(result.OutputBeforeResponse, "prior 0.625 order 0");
+        StringAssert.Contains(result.OutputBeforeResponse, "prior 0.375 order 1");
+    }
+
+    [TestMethod]
     public void Execute_LzAnalyze_UsesBoardNextColorAndLeelaWinrate()
     {
         var engine = new FakeGtpEngine
