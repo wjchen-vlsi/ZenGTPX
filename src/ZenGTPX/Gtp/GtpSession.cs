@@ -133,7 +133,16 @@ public sealed class GtpSession
             return Error(command, "boardsize requires one argument");
         }
 
-        var boardSize = int.Parse(command.Arguments[0], CultureInfo.InvariantCulture);
+        if (!TryParseInteger(command.Arguments[0], out var boardSize))
+        {
+            return Error(command, "boardsize must be an integer");
+        }
+
+        if (boardSize <= 0 || boardSize > 25)
+        {
+            return Error(command, "boardsize must be between 1 and 25");
+        }
+
         StopAnalysis();
         lock (_engineLock)
         {
@@ -169,7 +178,11 @@ public sealed class GtpSession
             return Error(command, "komi requires one argument");
         }
 
-        var komi = double.Parse(command.Arguments[0], CultureInfo.InvariantCulture);
+        if (!TryParseDouble(command.Arguments[0], out var komi))
+        {
+            return Error(command, "komi must be numeric");
+        }
+
         lock (_engineLock)
         {
             _engine.SetKomi(komi);
@@ -239,9 +252,17 @@ public sealed class GtpSession
             return Error(command, "undo accepts at most one argument");
         }
 
-        var count = command.Arguments.Count == 0
-            ? 1
-            : int.Parse(command.Arguments[0], CultureInfo.InvariantCulture);
+        var count = 1;
+        if (command.Arguments.Count == 1 &&
+            !TryParseInteger(command.Arguments[0], out count))
+        {
+            return Error(command, "undo count must be an integer");
+        }
+
+        if (count <= 0)
+        {
+            return Error(command, "undo count must be positive");
+        }
 
         StopAnalysis();
         bool undone;
@@ -266,7 +287,11 @@ public sealed class GtpSession
             return Error(command, "fixed_handicap requires one argument");
         }
 
-        var count = int.Parse(command.Arguments[0], CultureInfo.InvariantCulture);
+        if (!TryParseInteger(command.Arguments[0], out var count))
+        {
+            return Error(command, "fixed_handicap count must be an integer");
+        }
+
         var coordinates = FixedHandicapCoordinates(_engine.BoardSize, count);
         foreach (var coordinate in coordinates)
         {
@@ -366,9 +391,16 @@ public sealed class GtpSession
             return Error(command, "time_settings requires main time, byoyomi time, and periods");
         }
 
-        var mainTime = double.Parse(command.Arguments[0], CultureInfo.InvariantCulture);
-        var byoyomiTime = double.Parse(command.Arguments[1], CultureInfo.InvariantCulture);
-        var periods = int.Parse(command.Arguments[2], CultureInfo.InvariantCulture);
+        if (!TryParseDouble(command.Arguments[0], out var mainTime) ||
+            !TryParseDouble(command.Arguments[1], out var byoyomiTime))
+        {
+            return Error(command, "time_settings times must be numeric");
+        }
+
+        if (!TryParseInteger(command.Arguments[2], out var periods))
+        {
+            return Error(command, "time_settings periods must be an integer");
+        }
 
         if (mainTime < 0 || byoyomiTime < 0 || periods < 0)
         {
@@ -391,8 +423,15 @@ public sealed class GtpSession
         }
 
         var color = ParseColor(command.Arguments[0]);
-        var time = double.Parse(command.Arguments[1], CultureInfo.InvariantCulture);
-        var stones = int.Parse(command.Arguments[2], CultureInfo.InvariantCulture);
+        if (!TryParseDouble(command.Arguments[1], out var time))
+        {
+            return Error(command, "time_left time must be numeric");
+        }
+
+        if (!TryParseInteger(command.Arguments[2], out var stones))
+        {
+            return Error(command, "time_left stones must be an integer");
+        }
 
         if (time < 0 || stones < 0)
         {
@@ -541,6 +580,19 @@ public sealed class GtpSession
             return Error(command, "lz-analyze accepts at most one visits argument");
         }
 
+        if (command.Arguments.Count == 1)
+        {
+            if (!TryParseInteger(command.Arguments[0], out var visits))
+            {
+                return Error(command, "lz-analyze visits must be an integer");
+            }
+
+            if (visits <= 0)
+            {
+                return Error(command, "lz-analyze visits must be positive");
+            }
+        }
+
         var color = _board.NextColor;
         if (_writeAnalysisOutput is null)
         {
@@ -565,6 +617,19 @@ public sealed class GtpSession
         }
 
         var color = ParseColor(command.Arguments[0]);
+        if (command.Arguments.Count == 2)
+        {
+            if (!TryParseInteger(command.Arguments[1], out var visits))
+            {
+                return Error(command, "kata-analyze visits must be an integer");
+            }
+
+            if (visits <= 0)
+            {
+                return Error(command, "kata-analyze visits must be positive");
+            }
+        }
+
         if (_writeAnalysisOutput is null)
         {
             IReadOnlyList<GtpAnalysisMove> moves;
@@ -721,6 +786,16 @@ public sealed class GtpSession
         {
             cancellation.Dispose();
         }
+    }
+
+    private static bool TryParseInteger(string value, out int result)
+    {
+        return int.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out result);
+    }
+
+    private static bool TryParseDouble(string value, out double result)
+    {
+        return double.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out result);
     }
 
     private static StoneColor ParseColor(string value)

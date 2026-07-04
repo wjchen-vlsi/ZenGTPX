@@ -12,6 +12,7 @@
 - Support `set_free_handicap` as a GTP-compatible free handicap placement command.
 - Support ZenGTPX diagnostic commands for policy, territory, and final-score estimate breakdowns.
 - Harden GTP lifecycle state handling for occupied moves, generated moves, pass moves, handicap placement, undo, and clear-board flows.
+- Normalize numeric argument errors for GTP commands so invalid input returns command-specific responses.
 - Reject negative `time_left` stone counts before forwarding time updates to the engine.
 - Document the version history baseline for ZenGTPX.
 

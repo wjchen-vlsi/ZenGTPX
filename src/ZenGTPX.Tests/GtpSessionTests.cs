@@ -188,6 +188,22 @@ public sealed class GtpSessionTests
         Assert.IsTrue(result.ShouldQuit);
     }
 
+    [DataTestMethod]
+    [DataRow("boardsize abc", "? boardsize must be an integer\n\n")]
+    [DataRow("boardsize 0", "? boardsize must be between 1 and 25\n\n")]
+    [DataRow("komi abc", "? komi must be numeric\n\n")]
+    [DataRow("undo abc", "? undo count must be an integer\n\n")]
+    [DataRow("undo 0", "? undo count must be positive\n\n")]
+    [DataRow("fixed_handicap abc", "? fixed_handicap count must be an integer\n\n")]
+    public void Execute_InvalidNumericArgument_ReturnsCommandSpecificError(string command, string expected)
+    {
+        var engine = new FakeGtpEngine();
+        var result = Execute(command, engine);
+
+        Assert.AreEqual(expected, result.Response.Format());
+        CollectionAssert.AreEqual(Array.Empty<string>(), engine.Calls);
+    }
+
     [TestMethod]
     public void Execute_BoardSize_SetsBoardSizeAndClearsBoard()
     {
@@ -433,6 +449,20 @@ public sealed class GtpSessionTests
         Assert.AreEqual("=\n\n", result.Response.Format());
         Assert.AreEqual("info move Q16 visits 1700 winrate 5342 pv Q16 D4\n", result.OutputBeforeResponse);
         Assert.AreEqual(StoneColor.White, engine.LastAnalyzeColor);
+    }
+
+    [DataTestMethod]
+    [DataRow("lz-analyze abc", "? lz-analyze visits must be an integer\n\n")]
+    [DataRow("lz-analyze 0", "? lz-analyze visits must be positive\n\n")]
+    [DataRow("kata-analyze b abc", "? kata-analyze visits must be an integer\n\n")]
+    [DataRow("kata-analyze b 0", "? kata-analyze visits must be positive\n\n")]
+    public void Execute_Analyze_InvalidVisits_ReturnsCommandSpecificError(string command, string expected)
+    {
+        var engine = new FakeGtpEngine();
+        var result = Execute(command, engine);
+
+        Assert.AreEqual(expected, result.Response.Format());
+        CollectionAssert.AreEqual(Array.Empty<string>(), engine.Calls);
     }
 
     [TestMethod]
@@ -814,6 +844,19 @@ public sealed class GtpSessionTests
         CollectionAssert.AreEqual(Array.Empty<string>(), engine.Calls);
     }
 
+    [DataTestMethod]
+    [DataRow("time_settings abc 10 3", "? time_settings times must be numeric\n\n")]
+    [DataRow("time_settings 60 abc 3", "? time_settings times must be numeric\n\n")]
+    [DataRow("time_settings 60 10 abc", "? time_settings periods must be an integer\n\n")]
+    public void Execute_TimeSettings_InvalidNumericArgument_ReturnsCommandSpecificError(string command, string expected)
+    {
+        var engine = new FakeGtpEngine();
+        var result = Execute(command, engine);
+
+        Assert.AreEqual(expected, result.Response.Format());
+        CollectionAssert.AreEqual(Array.Empty<string>(), engine.Calls);
+    }
+
     [TestMethod]
     public void Execute_TimeLeft_ForwardsToEngine()
     {
@@ -841,6 +884,18 @@ public sealed class GtpSessionTests
         var result = Execute("time_left b 10 -1", engine);
 
         Assert.AreEqual("? time_left values must not be negative\n\n", result.Response.Format());
+        CollectionAssert.AreEqual(Array.Empty<string>(), engine.Calls);
+    }
+
+    [DataTestMethod]
+    [DataRow("time_left b abc 5", "? time_left time must be numeric\n\n")]
+    [DataRow("time_left b 10 abc", "? time_left stones must be an integer\n\n")]
+    public void Execute_TimeLeft_InvalidNumericArgument_ReturnsCommandSpecificError(string command, string expected)
+    {
+        var engine = new FakeGtpEngine();
+        var result = Execute(command, engine);
+
+        Assert.AreEqual(expected, result.Response.Format());
         CollectionAssert.AreEqual(Array.Empty<string>(), engine.Calls);
     }
 
