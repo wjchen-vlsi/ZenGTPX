@@ -11,7 +11,8 @@ ZenGTPX supports first-pass GTP analysis commands for GUI candidate display:
 - `kata-analyze <color> [visits]`
 - `stop`
 
-Both commands run a synchronous Zen search, read candidates from `ZenGetTopMoveInfo(index)`, emit `info move ...` analysis lines, then terminate the GTP response with `=`.
+With the normal executable entrypoint, both commands acknowledge the GTP command with `=`, then continue emitting background `info move ...` analysis lines until `stop` or a board-changing command is received.
+The candidate data is read from `ZenGetTopMoveInfo(index)`.
 
 `kata-analyze` emits one line containing multiple KataGo-style `info move` entries:
 
@@ -29,7 +30,7 @@ info move Q16 visits 1700 winrate 5342 pv Q16 D4
 
 Current limitations:
 
-- Analysis is synchronous and one-shot; it is not yet a background stream that continues until `stop`.
+- `stop` requests cancellation of the background stream. If Zen native search is currently inside one search cycle, cancellation completes after that cycle returns.
 - Candidate coordinates, playouts, winrate, and PV text come from `ZenGetTopMoveInfo(index)`.
 - `scoreLead`, `scoreMean`, and `prior` are compatibility placeholders because Zen7 does not currently expose equivalent reliable values through the wrapped API.
 - ZenGTPX does not implement KataGo `analysis` JSON protocol.

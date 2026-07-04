@@ -200,8 +200,9 @@ public sealed class ZenEngine : IGtpEngine, IDisposable
                 continue;
             }
 
-            var move = GtpMove.Play(new BoardCoordinate(topMove.X, topMove.Y));
-            var vertex = GtpVertex.Format(move.Coordinate.Value, _boardSize);
+            var coordinate = new BoardCoordinate(topMove.X, topMove.Y);
+            var move = GtpMove.Play(coordinate);
+            var vertex = GtpVertex.Format(coordinate, _boardSize);
             var pv = string.IsNullOrWhiteSpace(topMove.Text) ? vertex : topMove.Text.Trim();
             moves.Add(new GtpAnalysisMove(move, topMove.Playouts, topMove.Winrate, pv));
         }

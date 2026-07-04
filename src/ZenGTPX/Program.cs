@@ -8,7 +8,8 @@ if (engine is null)
     return 1;
 }
 
-var session = new GtpSession(engine);
+var outputLock = new object();
+var session = new GtpSession(engine, WriteAnalysisOutput);
 
 while (Console.In.ReadLine() is { } line)
 {
@@ -19,13 +20,16 @@ while (Console.In.ReadLine() is { } line)
     }
 
     var result = session.Execute(command);
-    if (result.OutputBeforeResponse.Length > 0)
+    lock (outputLock)
     {
-        Console.Out.Write(result.OutputBeforeResponse);
-    }
+        if (result.OutputBeforeResponse.Length > 0)
+        {
+            Console.Out.Write(result.OutputBeforeResponse);
+        }
 
-    Console.Out.Write(result.Response.Format());
-    Console.Out.Flush();
+        Console.Out.Write(result.Response.Format());
+        Console.Out.Flush();
+    }
 
     if (result.ShouldQuit)
     {
@@ -48,5 +52,14 @@ static ZenEngine? InitializeZen(string[] args)
     {
         Console.Error.WriteLine($"ZenGTPX startup failed: {ex.Message}");
         return null;
+    }
+}
+
+void WriteAnalysisOutput(string output)
+{
+    lock (outputLock)
+    {
+        Console.Out.Write(output);
+        Console.Out.Flush();
     }
 }

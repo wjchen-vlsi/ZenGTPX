@@ -6,6 +6,7 @@ namespace ZenGTPX.Gtp;
 public sealed class GtpSession
 {
     private const int AnalysisCandidateCount = 10;
+    private const int AnalysisIntervalMilliseconds = 1000;
 
     private static readonly string[] Commands =
     [
@@ -39,7 +40,7 @@ public sealed class GtpSession
     ];
 
     private static readonly HashSet<string> KnownCommands = new(Commands, StringComparer.Ordinal);
-    private static readonly Dictionary<string, string> KataParameters = new(StringComparer.Ordinal)
+    private readonly Dictionary<string, string> _kataParameters = new(StringComparer.Ordinal)
     {
         ["analysisWideRootNoise"] = "0.04",
         ["maxTime"] = "2",
@@ -50,11 +51,16 @@ public sealed class GtpSession
 
     private readonly IGtpEngine _engine;
     private readonly BoardState _board;
+    private readonly object _engineLock = new();
+    private readonly Action<string>? _writeAnalysisOutput;
+    private CancellationTokenSource? _analysisCancellation;
+    private Thread? _analysisThread;
 
-    public GtpSession(IGtpEngine engine)
+    public GtpSession(IGtpEngine engine, Action<string>? writeAnalysisOutput = null)
     {
         _engine = engine;
         _board = new BoardState(engine.BoardSize);
+        _writeAnalysisOutput = writeAnalysisOutput;
     }
 
     public GtpExecutionResult Execute(GtpCommand command)
@@ -89,7 +95,7 @@ public sealed class GtpSession
                 "kata-get-rules" => KataGetRules(command),
                 "kata-time_settings" => KataTimeSettings(command),
                 "zengtp_last_search_info" => LastSearchInfo(command),
-                "quit" => new GtpExecutionResult(GtpResponse.Success(command.Id), ShouldQuit: true),
+                "quit" => Quit(command),
                 _ => Error(command, "unknown command"),
             };
         }
@@ -118,8 +124,13 @@ public sealed class GtpSession
         }
 
         var boardSize = int.Parse(command.Arguments[0], CultureInfo.InvariantCulture);
-        _engine.SetBoardSize(boardSize);
-        _engine.ClearBoard();
+        StopAnalysis();
+        lock (_engineLock)
+        {
+            _engine.SetBoardSize(boardSize);
+            _engine.ClearBoard();
+        }
+
         _board.SetBoardSize(boardSize);
         return Success(command, "");
     }
@@ -131,7 +142,12 @@ public sealed class GtpSession
             return Error(command, "clear_board does not accept arguments");
         }
 
-        _engine.ClearBoard();
+        StopAnalysis();
+        lock (_engineLock)
+        {
+            _engine.ClearBoard();
+        }
+
         _board.Clear();
         return Success(command, "");
     }
@@ -144,7 +160,11 @@ public sealed class GtpSession
         }
 
         var komi = double.Parse(command.Arguments[0], CultureInfo.InvariantCulture);
-        _engine.SetKomi(komi);
+        lock (_engineLock)
+        {
+            _engine.SetKomi(komi);
+        }
+
         return Success(command, "");
     }
 
@@ -162,7 +182,14 @@ public sealed class GtpSession
             return Error(command, "resign is not valid for play");
         }
 
-        if (!_engine.Play(color, move))
+        StopAnalysis();
+        bool played;
+        lock (_engineLock)
+        {
+            played = _engine.Play(color, move);
+        }
+
+        if (!played)
         {
             return Error(command, "illegal move");
         }
@@ -179,7 +206,13 @@ public sealed class GtpSession
         }
 
         var color = ParseColor(command.Arguments[0]);
-        var move = _engine.GenMove(color);
+        StopAnalysis();
+        GtpMove move;
+        lock (_engineLock)
+        {
+            move = _engine.GenMove(color);
+        }
+
         _board.Play(color, move);
         return Success(command, FormatMove(move));
     }
@@ -195,7 +228,14 @@ public sealed class GtpSession
             ? 1
             : int.Parse(command.Arguments[0], CultureInfo.InvariantCulture);
 
-        if (!_engine.Undo(count))
+        StopAnalysis();
+        bool undone;
+        lock (_engineLock)
+        {
+            undone = _engine.Undo(count);
+        }
+
+        if (!undone)
         {
             return Error(command, "cannot undo");
         }
@@ -217,7 +257,14 @@ public sealed class GtpSession
         foreach (var coordinate in coordinates)
         {
             var move = GtpMove.Play(coordinate);
-            if (!_engine.Play(StoneColor.Black, move))
+            bool played;
+            StopAnalysis();
+            lock (_engineLock)
+            {
+                played = _engine.Play(StoneColor.Black, move);
+            }
+
+            if (!played)
             {
                 return Error(
                     command,
@@ -256,7 +303,14 @@ public sealed class GtpSession
         foreach (var coordinate in coordinates)
         {
             var move = GtpMove.Play(coordinate);
-            if (!_engine.Play(StoneColor.Black, move))
+            bool played;
+            StopAnalysis();
+            lock (_engineLock)
+            {
+                played = _engine.Play(StoneColor.Black, move);
+            }
+
+            if (!played)
             {
                 return Error(
                     command,
@@ -289,7 +343,10 @@ public sealed class GtpSession
             return Error(command, "time_settings values must not be negative");
         }
 
-        _engine.SetTimeSettings(mainTime, byoyomiTime, periods);
+        lock (_engineLock)
+        {
+            _engine.SetTimeSettings(mainTime, byoyomiTime, periods);
+        }
 
         return Success(command, "");
     }
@@ -310,7 +367,11 @@ public sealed class GtpSession
             return Error(command, "time_left time must not be negative");
         }
 
-        _engine.SetTimeLeft(color, time, stones);
+        lock (_engineLock)
+        {
+            _engine.SetTimeLeft(color, time, stones);
+        }
+
         return Success(command, "");
     }
 
@@ -331,7 +392,10 @@ public sealed class GtpSession
             return Error(command, "final_score does not accept arguments");
         }
 
-        return Success(command, _engine.EstimateFinalScore());
+        lock (_engineLock)
+        {
+            return Success(command, _engine.EstimateFinalScore());
+        }
     }
 
     private GtpExecutionResult LastSearchInfo(GtpCommand command)
@@ -353,13 +417,14 @@ public sealed class GtpSession
                 $"move {FormatMove(searchInfo.Move)} playouts {searchInfo.Playouts} winrate {searchInfo.Winrate:0.0000} time {searchInfo.TimeSeconds:0.000}"));
     }
 
-    private static GtpExecutionResult Stop(GtpCommand command)
+    private GtpExecutionResult Stop(GtpCommand command)
     {
         if (command.Arguments.Count != 0)
         {
             return Error(command, "stop does not accept arguments");
         }
 
+        StopAnalysis();
         return Success(command, "");
     }
 
@@ -370,8 +435,20 @@ public sealed class GtpSession
             return Error(command, "lz-analyze accepts at most one visits argument");
         }
 
-        var moves = _engine.Analyze(_board.NextColor, AnalysisCandidateCount);
-        return AnalysisSuccess(command, FormatLzAnalysis(moves));
+        var color = _board.NextColor;
+        if (_writeAnalysisOutput is null)
+        {
+            IReadOnlyList<GtpAnalysisMove> moves;
+            lock (_engineLock)
+            {
+                moves = _engine.Analyze(color, AnalysisCandidateCount);
+            }
+
+            return AnalysisSuccess(command, FormatLzAnalysis(moves));
+        }
+
+        StartAnalysisStream(color, FormatLzAnalysis);
+        return Success(command, "");
     }
 
     private GtpExecutionResult KataAnalyze(GtpCommand command)
@@ -382,38 +459,60 @@ public sealed class GtpSession
         }
 
         var color = ParseColor(command.Arguments[0]);
-        var moves = _engine.Analyze(color, AnalysisCandidateCount);
-        return AnalysisSuccess(command, FormatKataAnalysis(moves));
+        if (_writeAnalysisOutput is null)
+        {
+            IReadOnlyList<GtpAnalysisMove> moves;
+            lock (_engineLock)
+            {
+                moves = _engine.Analyze(color, AnalysisCandidateCount);
+            }
+
+            return AnalysisSuccess(command, FormatKataAnalysis(moves));
+        }
+
+        StartAnalysisStream(color, FormatKataAnalysis);
+        return Success(command, "");
     }
 
-    private static GtpExecutionResult KataSetParam(GtpCommand command)
+    private GtpExecutionResult KataSetParam(GtpCommand command)
     {
         if (command.Arguments.Count < 2)
         {
             return Error(command, "kata-set-param requires name and value");
         }
 
+        var name = command.Arguments[0];
+        var value = command.Arguments[1];
+        _kataParameters[name] = value;
+        if (name.Equals("maxTime", StringComparison.Ordinal) && double.TryParse(value, CultureInfo.InvariantCulture, out var maxTime))
+        {
+            lock (_engineLock)
+            {
+                _engine.SetMaxTime(maxTime);
+            }
+        }
+
         return Success(command, "");
     }
 
-    private static GtpExecutionResult KataGetParam(GtpCommand command)
+    private GtpExecutionResult KataGetParam(GtpCommand command)
     {
         if (command.Arguments.Count != 1)
         {
             return Error(command, "kata-get-param requires one parameter name");
         }
 
-        return Success(command, KataParameters.GetValueOrDefault(command.Arguments[0], ""));
+        return Success(command, _kataParameters.GetValueOrDefault(command.Arguments[0], ""));
     }
 
-    private static GtpExecutionResult KataListParams(GtpCommand command)
+    private GtpExecutionResult KataListParams(GtpCommand command)
     {
         if (command.Arguments.Count != 0)
         {
             return Error(command, "kata-list-params does not accept arguments");
         }
 
-        return Success(command, string.Join('\n', KataParameters.Keys.Order(StringComparer.Ordinal)));
+        return Success(command, string.Join('\n', _kataParameters.Keys.Order(StringComparer.Ordinal)));
     }
 
     private static GtpExecutionResult KataGetRules(GtpCommand command)
@@ -436,6 +535,87 @@ public sealed class GtpSession
         }
 
         return Success(command, "");
+    }
+
+    private GtpExecutionResult Quit(GtpCommand command)
+    {
+        StopAnalysis();
+        return new GtpExecutionResult(GtpResponse.Success(command.Id), ShouldQuit: true);
+    }
+
+    private void StartAnalysisStream(StoneColor color, Func<IReadOnlyList<GtpAnalysisMove>, string> format)
+    {
+        StopAnalysis();
+        if (_writeAnalysisOutput is null)
+        {
+            return;
+        }
+
+        var cancellation = new CancellationTokenSource();
+        _analysisCancellation = cancellation;
+        _analysisThread = new Thread(() => RunAnalysisStream(color, format, cancellation.Token))
+        {
+            IsBackground = true,
+            Name = "ZenGTPX analysis stream",
+        };
+        _analysisThread.Start();
+    }
+
+    private void RunAnalysisStream(
+        StoneColor color,
+        Func<IReadOnlyList<GtpAnalysisMove>, string> format,
+        CancellationToken cancellationToken)
+    {
+        while (!cancellationToken.IsCancellationRequested)
+        {
+            IReadOnlyList<GtpAnalysisMove> moves;
+            lock (_engineLock)
+            {
+                if (cancellationToken.IsCancellationRequested)
+                {
+                    return;
+                }
+
+                moves = _engine.Analyze(color, AnalysisCandidateCount);
+            }
+
+            if (cancellationToken.IsCancellationRequested)
+            {
+                return;
+            }
+
+            var output = format(moves);
+            if (output.Length > 0)
+            {
+                _writeAnalysisOutput?.Invoke(output + "\n");
+            }
+
+            if (cancellationToken.WaitHandle.WaitOne(AnalysisIntervalMilliseconds))
+            {
+                return;
+            }
+        }
+    }
+
+    private void StopAnalysis()
+    {
+        var cancellation = _analysisCancellation;
+        var thread = _analysisThread;
+        _analysisCancellation = null;
+        _analysisThread = null;
+
+        if (cancellation is null)
+        {
+            return;
+        }
+
+        cancellation.Cancel();
+        if (thread is not null && thread.IsAlive)
+        {
+            thread.Join(TimeSpan.FromSeconds(5));
+        }
+
+        cancellation.Dispose();
     }
 
     private static StoneColor ParseColor(string value)
