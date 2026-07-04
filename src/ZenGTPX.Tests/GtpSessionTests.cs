@@ -303,7 +303,7 @@ public sealed class GtpSessionTests
 
         Assert.AreEqual("=\n\n", result.Response.Format());
         Assert.AreEqual(
-            "info move Q16 visits 1700 winrate 0.5342 scoreLead 0.0 scoreMean 0.0 prior 0.000 order 0 pv Q16 D4 info move D4 visits 850 winrate 0.4980 scoreLead 0.0 scoreMean 0.0 prior 0.000 order 1 pv D4 Q16\n",
+            "info move Q16 visits 1700 winrate 0.5342 scoreLead 1.0 scoreMean 1.0 prior 0.100 order 0 pv Q16 D4 info move D4 visits 850 winrate 0.4980 scoreLead -0.1 scoreMean -0.1 prior 0.080 order 1 pv D4 Q16\n",
             result.OutputBeforeResponse);
         Assert.AreEqual(StoneColor.Black, engine.LastAnalyzeColor);
     }
@@ -503,6 +503,8 @@ public sealed class GtpSessionTests
     private sealed class FakeGtpEngine : IGtpEngine
     {
         public int BoardSize { get; private set; } = 19;
+
+        public string GtpName { get; init; } = "ZenGTPX";
 
         public GtpSearchInfo? LastSearchInfo { get; private set; }
 

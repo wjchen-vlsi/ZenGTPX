@@ -70,7 +70,7 @@ public sealed class GtpSession
             return command.Name switch
             {
                 "protocol_version" => Success(command, "2"),
-                "name" => Success(command, "ZenGTPX"),
+                "name" => Success(command, _engine.GtpName),
                 "version" => Success(command, "0.1.0"),
                 "list_commands" => Success(command, string.Join('\n', Commands)),
                 "known_command" => KnownCommand(command),
@@ -693,7 +693,7 @@ public sealed class GtpSession
             moves.Select(
                 (move, index) => string.Create(
                     CultureInfo.InvariantCulture,
-                    $"info move {FormatMove(move.Move)} visits {move.Playouts} winrate {move.Winrate:0.0000} scoreLead 0.0 scoreMean 0.0 prior 0.000 order {index} pv {FormatPrincipalVariation(move)}")));
+                    $"info move {FormatMove(move.Move)} visits {move.Playouts} winrate {move.Winrate:0.0000} scoreLead {KataScoreLead(move.Winrate):0.0} scoreMean {KataScoreLead(move.Winrate):0.0} prior {KataPrior(index):0.000} order {index} pv {FormatPrincipalVariation(move)}")));
     }
 
     private string FormatLzAnalysis(IReadOnlyList<GtpAnalysisMove> moves)
@@ -716,6 +716,22 @@ public sealed class GtpSession
     private static int ToLeelaWinrate(double winrate)
     {
         return Math.Clamp((int)Math.Round(winrate * 10000, MidpointRounding.AwayFromZero), 0, 10000);
+    }
+
+    private static double KataScoreLead(double winrate)
+    {
+        return (winrate - 0.5) * 30.0;
+    }
+
+    private static double KataPrior(int order)
+    {
+        return order switch
+        {
+            0 => 0.100,
+            1 => 0.080,
+            2 => 0.050,
+            _ => Math.Max(0.010, 0.050 - (0.005 * (order - 2))),
+        };
     }
 
     private static GtpExecutionResult Success(GtpCommand command, string body)

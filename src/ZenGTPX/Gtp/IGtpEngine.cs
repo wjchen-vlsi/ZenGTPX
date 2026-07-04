@@ -6,6 +6,8 @@ public interface IGtpEngine
 {
     int BoardSize { get; }
 
+    string GtpName { get; }
+
     GtpSearchInfo? LastSearchInfo { get; }
 
     void SetBoardSize(int boardSize);

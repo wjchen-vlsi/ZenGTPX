@@ -17,7 +17,7 @@ The candidate data is read from `ZenGetTopMoveInfo(index)`.
 `kata-analyze` emits one line containing multiple KataGo-style `info move` entries:
 
 ```text
-info move Q16 visits 1700 winrate 0.5342 scoreLead 0.0 scoreMean 0.0 prior 0.000 order 0 pv Q16 D4 info move D4 visits 850 winrate 0.4980 scoreLead 0.0 scoreMean 0.0 prior 0.000 order 1 pv D4 Q16
+info move Q16 visits 1700 winrate 0.5342 scoreLead 1.0 scoreMean 1.0 prior 0.100 order 0 pv Q16 D4 info move D4 visits 850 winrate 0.4980 scoreLead -0.1 scoreMean -0.1 prior 0.080 order 1 pv D4 Q16
 =
 ```
 
@@ -33,6 +33,7 @@ Current limitations:
 - `stop` requests cancellation of the background stream. If Zen native search is currently inside one search cycle, cancellation completes after that cycle returns.
 - Candidate coordinates, playouts, winrate, and PV text come from `ZenGetTopMoveInfo(index)`.
 - `scoreLead`, `scoreMean`, and `prior` are compatibility placeholders because Zen7 does not currently expose equivalent reliable values through the wrapped API.
+- For LizzieYzy Next multi-candidate display, use `gtpName = KataGo` in `zen7.cfg`; this only changes the GTP `name` response.
 - ZenGTPX does not implement KataGo `analysis` JSON protocol.
 
 ## `zengtp_last_search_info`

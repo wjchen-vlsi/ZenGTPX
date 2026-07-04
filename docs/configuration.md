@@ -73,6 +73,7 @@ Use `mode = advanced` only when you want to tune low-level parameters directly.
 
 ```cfg
 zenDll = Zen.dll
+gtpName = KataGo
 boardSize = 19
 komi = 7.5
 handicap = 0
@@ -84,6 +85,7 @@ Recommended ranges:
 
 | Key | Range | Recommended |
 | --- | --- | --- |
+| `gtpName` | non-empty string | `KataGo` for LizzieYzy Next multi-candidate display; `ZenGTPX` for generic GTP scripts |
 | `boardSize` | `1` to `25` | `19` |
 | `komi` | any number | `6.5` or `7.5` |
 | `handicap` | `0` or greater | `0` |
@@ -104,6 +106,8 @@ These are used directly only with `mode = advanced`; `mode = rank` and `mode = f
 
 ## GTP Behavior Notes
 
+- `gtpName` controls the GTP `name` response only. The default deployment config uses `KataGo` because LizzieYzy Next enables multi-candidate analysis display on its KataGo-compatible path.
+- `gtpName = KataGo` does not mean ZenGTPX supports KataGo `analysis` JSON protocol.
 - `time_settings` / `time_left` are forwarded to Zen native time API where supported; `time_settings` also updates the wrapper's per-move deadline.
 - `final_score` returns an area-score estimate from Zen territory statistics, not a full ruleset adjudication.
 - Config `handicap` is a passive game parameter. It does not place stones or change board state by itself.

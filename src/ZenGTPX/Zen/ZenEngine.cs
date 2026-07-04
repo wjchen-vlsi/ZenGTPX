@@ -59,6 +59,8 @@ public sealed class ZenEngine : IGtpEngine, IDisposable
 
     public int BoardSize => _boardSize;
 
+    public string GtpName => _options.GtpName;
+
     public GtpSearchInfo? LastSearchInfo { get; private set; }
 
     public void SetBoardSize(int boardSize)
@@ -189,25 +191,8 @@ public sealed class ZenEngine : IGtpEngine, IDisposable
         var candidateCount = Math.Min(maxCandidates, 10);
         var zenColor = (int)color;
         _native.SetNextColor(zenColor);
-        _ = ThinkUntilTopMove(zenColor);
-
-        var moves = new List<GtpAnalysisMove>(candidateCount);
-        for (var index = 0; index < candidateCount; index++)
-        {
-            var topMove = _native.GetTopMoveInfo(index);
-            if (topMove.Playouts <= 0 || !IsOnBoard(topMove.X, topMove.Y))
-            {
-                continue;
-            }
-
-            var coordinate = new BoardCoordinate(topMove.X, topMove.Y);
-            var move = GtpMove.Play(coordinate);
-            var vertex = GtpVertex.Format(coordinate, _boardSize);
-            var pv = string.IsNullOrWhiteSpace(topMove.Text) ? vertex : topMove.Text.Trim();
-            moves.Add(new GtpAnalysisMove(move, topMove.Playouts, topMove.Winrate, pv));
-        }
-
-        return moves;
+        var moves = ThinkUntilAnalysisMoves(zenColor, candidateCount);
+        return moves.Count > 0 ? moves : ReadAnalysisMoves(candidateCount);
     }
 
     public bool Undo(int count)
@@ -364,6 +349,69 @@ public sealed class ZenEngine : IGtpEngine, IDisposable
         }
 
         return topMove.Playouts > 0 ? topMove : _native.GetTopMoveInfo(0);
+    }
+
+    private IReadOnlyList<GtpAnalysisMove> ThinkUntilAnalysisMoves(int zenColor, int candidateCount)
+    {
+        IReadOnlyList<GtpAnalysisMove> moves = [];
+        _native.StartThinking(zenColor);
+
+        try
+        {
+            var deadline = DateTime.UtcNow.AddSeconds(Math.Max(0.1, _maxTime) + 0.5);
+            while (DateTime.UtcNow < deadline)
+            {
+                Thread.Sleep(100);
+                var currentMoves = ReadAnalysisMoves(candidateCount);
+                if (currentMoves.Count > 0)
+                {
+                    moves = currentMoves;
+                }
+
+                if (currentMoves.Count > 0 && currentMoves[0].Playouts >= _options.MaxSimulations)
+                {
+                    break;
+                }
+
+                if (!_native.IsThinking)
+                {
+                    break;
+                }
+            }
+        }
+        finally
+        {
+            _native.StopThinking();
+        }
+
+        return moves;
+    }
+
+    private IReadOnlyList<GtpAnalysisMove> ReadAnalysisMoves(int candidateCount)
+    {
+        var moves = new List<GtpAnalysisMove>(candidateCount);
+        var seen = new HashSet<BoardCoordinate>();
+        for (var index = 0; index < candidateCount; index++)
+        {
+            var topMove = _native.GetTopMoveInfo(index);
+            if (topMove.Playouts <= 0 || !IsOnBoard(topMove.X, topMove.Y))
+            {
+                continue;
+            }
+
+            var coordinate = new BoardCoordinate(topMove.X, topMove.Y);
+            if (!seen.Add(coordinate))
+            {
+                continue;
+            }
+
+            var move = GtpMove.Play(coordinate);
+            var vertex = GtpVertex.Format(coordinate, _boardSize);
+            var pv = string.IsNullOrWhiteSpace(topMove.Text) ? vertex : topMove.Text.Trim();
+            moves.Add(new GtpAnalysisMove(move, topMove.Playouts, topMove.Winrate, pv));
+        }
+
+        return moves;
     }
 
     private GtpMove Pass(int zenColor)

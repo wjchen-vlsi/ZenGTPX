@@ -11,6 +11,8 @@ public sealed record ZenGtpOptions
 
     public string ZenDll { get; init; } = "Zen.dll";
 
+    public string GtpName { get; init; } = "ZenGTPX";
+
     public int BoardSize { get; init; } = 19;
 
     public double Komi { get; init; } = 7.5;
@@ -48,6 +50,11 @@ public sealed record ZenGtpOptions
         if (Handicap < 0)
         {
             throw new InvalidOperationException("handicap must not be negative.");
+        }
+
+        if (string.IsNullOrWhiteSpace(GtpName))
+        {
+            throw new InvalidOperationException("gtpName must not be empty.");
         }
 
         if (Threads <= 0)
@@ -173,6 +180,7 @@ public static class ZenGtpOptionsLoader
             "mode" => options with { Mode = value },
             "rankpreset" => options with { RankPreset = value },
             "zendll" => options with { ZenDll = value },
+            "gtpname" => options with { GtpName = value },
             "boardsize" => options with { BoardSize = ParseInt(value, key, lineNumber) },
             "komi" => options with { Komi = ParseDouble(value, key, lineNumber) },
             "handicap" => options with { Handicap = ParseInt(value, key, lineNumber) },
@@ -196,6 +204,7 @@ public static class ZenGtpOptionsLoader
             Mode = GetArgumentValue(args, "--mode") ?? normalized.Mode,
             RankPreset = GetArgumentValue(args, "--rankPreset") ?? normalized.RankPreset,
             ZenDll = GetArgumentValue(args, "--zenDll") ?? normalized.ZenDll,
+            GtpName = GetArgumentValue(args, "--gtpName") ?? normalized.GtpName,
             BoardSize = GetIntArgument(args, "--boardSize") ?? normalized.BoardSize,
             Komi = GetDoubleArgument(args, "--komi") ?? normalized.Komi,
             Handicap = GetIntArgument(args, "--handicap") ?? normalized.Handicap,
