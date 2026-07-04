@@ -266,33 +266,36 @@ public sealed class ZenEngine : IGtpEngine, IDisposable
 
     public string EstimateFinalScore()
     {
+        return GetFinalScoreEstimate().FormatAreaResult();
+    }
+
+    public GtpFinalScoreEstimate GetFinalScoreEstimate()
+    {
         if (_boardSize > 19)
         {
             throw new InvalidOperationException("final_score estimate is supported only up to board size 19.");
         }
 
-        var result = EstimateAreaScore(level: 3);
-        var winner = result > 0 ? "B" : "W";
-        return string.Create(
-            CultureInfo.InvariantCulture,
-            $"{winner}+{Math.Abs(result):0.0}");
+        return EstimateAreaScore(level: 3);
     }
 
-    private double EstimateAreaScore(int level)
+    private GtpFinalScoreEstimate EstimateAreaScore(int level)
     {
         var territory = _native.GetTerritoryStatistics();
-        var areaResults = new double[10];
+        var threshold = level * 100;
+        var score = CalculateTerritoryStats(threshold, territory);
 
-        for (var thresholdLevel = 0; thresholdLevel < areaResults.Length; thresholdLevel++)
-        {
-            var threshold = thresholdLevel * 100;
-            var score = CalculateTerritoryStats(threshold, territory);
-            var blackArea = score.BlackAlive + score.BlackCapture + score.BlackTerritory;
-            var whiteArea = score.WhiteAlive + score.WhiteCapture + score.WhiteTerritory;
-            areaResults[thresholdLevel] = blackArea - whiteArea - _komi;
-        }
-
-        return areaResults[level];
+        return new GtpFinalScoreEstimate(
+            threshold,
+            _komi,
+            score.BlackAlive,
+            score.BlackCapture,
+            score.BlackTerritory,
+            score.WhiteAlive,
+            score.WhiteCapture,
+            score.WhiteTerritory,
+            _native.GetNumBlackPrisoners(),
+            _native.GetNumWhitePrisoners());
     }
 
     private TerritoryScore CalculateTerritoryStats(int threshold, int[,] territory)

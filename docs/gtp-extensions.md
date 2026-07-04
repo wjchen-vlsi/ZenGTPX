@@ -77,6 +77,46 @@ Compatibility notes:
 - GUI clients will not receive this information unless they explicitly call this command.
 - `list_commands` advertises this command when it is supported.
 
+## `zengtp_final_score_detail`
+
+Returns the breakdown used by ZenGTPX's current final-score estimate.
+This command is for scripts and diagnostics. It is not a full ruleset adjudication command.
+
+`final_score` remains the standard GTP-facing short response, for example `B+3.5` or `W+0.5`.
+`zengtp_final_score_detail` exposes how the current estimate was derived.
+
+Example:
+
+```text
+zengtp_final_score_detail
+= areaEstimate W+6.5 areaMargin -6.5 captureAdjustedEstimate W+6.5 captureAdjustedMargin -6.5 threshold 300 komi 6.5 blackArea 0 whiteArea 0 blackAlive 0 blackCapture 0 blackTerritory 0 whiteAlive 0 whiteCapture 0 whiteTerritory 0 capturedBlackPrisoners 0 capturedWhitePrisoners 0
+```
+
+Response fields:
+
+| Field | Description |
+| --- | --- |
+| `areaEstimate` | The same area-score estimate format used by `final_score`. |
+| `areaMargin` | Black minus white minus komi, before prisoner adjustment. |
+| `captureAdjustedEstimate` | Diagnostic value: `areaMargin + capturedWhitePrisoners - capturedBlackPrisoners`. This is not used as the standard `final_score` response. |
+| `captureAdjustedMargin` | Numeric value behind `captureAdjustedEstimate`. |
+| `threshold` | Territory statistics threshold used by the existing estimate path. |
+| `komi` | Current komi. |
+| `blackArea` / `whiteArea` | Area counts used by the estimate. |
+| `blackAlive` / `whiteAlive` | Stones counted alive by the territory-statistics estimate. |
+| `blackCapture` / `whiteCapture` | Stones classified as captured by the territory-statistics estimate. |
+| `blackTerritory` / `whiteTerritory` | Empty points classified as territory by the estimate. |
+| `capturedBlackPrisoners` / `capturedWhitePrisoners` | Native prisoner counters from Zen. |
+
+The command takes no arguments and stops any active background analysis stream before reading the estimate.
+The wrapped territory API exposes a 19x19 matrix, so this command is supported only up to board size 19.
+
+Compatibility notes:
+
+- `areaEstimate` is still an estimate from Zen territory statistics.
+- `captureAdjustedEstimate` is exposed only to help inspect prisoner counters and should not be treated as an official Japanese, Chinese, or territory scoring result.
+- A complete final-score adjudicator would still need explicit rules, dead-stone handling, pass/end-state policy, and scoring validation.
+
 ## `zengtp_policy [count]`
 
 Returns the top positive Zen policy knowledge points for the current board.

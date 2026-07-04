@@ -96,6 +96,14 @@ public sealed class GtpSessionTests
     }
 
     [TestMethod]
+    public void Execute_KnownCommand_FinalScoreDetail()
+    {
+        var result = Execute("known_command zengtp_final_score_detail");
+
+        Assert.AreEqual("= true\n\n", result.Response.Format());
+    }
+
+    [TestMethod]
     public void Execute_KnownCommand_KataAnalyze()
     {
         var result = Execute("known_command kata-analyze");
@@ -128,6 +136,7 @@ public sealed class GtpSessionTests
                 "time_left",
                 "showboard",
                 "final_score",
+                "zengtp_final_score_detail",
                 "stop",
                 "lz-analyze",
                 "kata-analyze",
@@ -661,6 +670,39 @@ public sealed class GtpSessionTests
         Assert.AreEqual("= B+3.5\n\n", result.Response.Format());
     }
 
+    [TestMethod]
+    public void Execute_FinalScoreDetail_ReturnsEstimateBreakdown()
+    {
+        var engine = new FakeGtpEngine
+        {
+            FinalScoreEstimate = new GtpFinalScoreEstimate(
+                300,
+                6.5,
+                10,
+                1,
+                20,
+                8,
+                2,
+                18,
+                3,
+                4),
+        };
+
+        var result = Execute("zengtp_final_score_detail", engine);
+
+        Assert.AreEqual(
+            "= areaEstimate W+3.5 areaMargin -3.5 captureAdjustedEstimate W+2.5 captureAdjustedMargin -2.5 threshold 300 komi 6.5 blackArea 31 whiteArea 28 blackAlive 10 blackCapture 1 blackTerritory 20 whiteAlive 8 whiteCapture 2 whiteTerritory 18 capturedBlackPrisoners 3 capturedWhitePrisoners 4\n\n",
+            result.Response.Format());
+    }
+
+    [TestMethod]
+    public void Execute_FinalScoreDetail_RejectsArguments()
+    {
+        var result = Execute("zengtp_final_score_detail extra");
+
+        Assert.AreEqual("? zengtp_final_score_detail does not accept arguments\n\n", result.Response.Format());
+    }
+
     private static GtpExecutionResult Execute(string line)
     {
         return Execute(line, new FakeGtpEngine());
@@ -697,6 +739,18 @@ public sealed class GtpSessionTests
         public double MaxTime { get; private set; }
 
         public string FinalScore { get; init; } = "W+0.5";
+
+        public GtpFinalScoreEstimate FinalScoreEstimate { get; init; } = new(
+            300,
+            7.5,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0);
 
         public StoneColor LastColor { get; private set; }
 
@@ -862,6 +916,12 @@ public sealed class GtpSessionTests
         {
             AddCall("EstimateFinalScore");
             return FinalScore;
+        }
+
+        public GtpFinalScoreEstimate GetFinalScoreEstimate()
+        {
+            AddCall("GetFinalScoreEstimate");
+            return FinalScoreEstimate;
         }
 
         private void AddCall(string call)

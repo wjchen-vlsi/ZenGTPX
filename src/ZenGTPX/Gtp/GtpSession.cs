@@ -27,6 +27,7 @@ public sealed class GtpSession
         "time_left",
         "showboard",
         "final_score",
+        "zengtp_final_score_detail",
         "stop",
         "lz-analyze",
         "kata-analyze",
@@ -88,6 +89,7 @@ public sealed class GtpSession
                 "time_left" => TimeLeft(command),
                 "showboard" => ShowBoard(command),
                 "final_score" => FinalScore(command),
+                "zengtp_final_score_detail" => FinalScoreDetail(command),
                 "stop" => Stop(command),
                 "lz-analyze" => LzAnalyze(command),
                 "kata-analyze" => KataAnalyze(command),
@@ -399,6 +401,20 @@ public sealed class GtpSession
         lock (_engineLock)
         {
             return Success(command, _engine.EstimateFinalScore());
+        }
+    }
+
+    private GtpExecutionResult FinalScoreDetail(GtpCommand command)
+    {
+        if (command.Arguments.Count != 0)
+        {
+            return Error(command, "zengtp_final_score_detail does not accept arguments");
+        }
+
+        StopAnalysis();
+        lock (_engineLock)
+        {
+            return Success(command, FormatFinalScoreDetail(_engine.GetFinalScoreEstimate()));
         }
     }
 
@@ -789,6 +805,28 @@ public sealed class GtpSession
         }
 
         return string.Join('\n', lines);
+    }
+
+    private static string FormatFinalScoreDetail(GtpFinalScoreEstimate estimate)
+    {
+        return string.Create(
+            CultureInfo.InvariantCulture,
+            $"areaEstimate {estimate.FormatAreaResult()} " +
+            $"areaMargin {estimate.AreaMargin:0.0} " +
+            $"captureAdjustedEstimate {estimate.FormatCaptureAdjustedResult()} " +
+            $"captureAdjustedMargin {estimate.CaptureAdjustedMargin:0.0} " +
+            $"threshold {estimate.Threshold} " +
+            $"komi {estimate.Komi:0.0} " +
+            $"blackArea {estimate.BlackArea} " +
+            $"whiteArea {estimate.WhiteArea} " +
+            $"blackAlive {estimate.BlackAlive} " +
+            $"blackCapture {estimate.BlackCapture} " +
+            $"blackTerritory {estimate.BlackTerritory} " +
+            $"whiteAlive {estimate.WhiteAlive} " +
+            $"whiteCapture {estimate.WhiteCapture} " +
+            $"whiteTerritory {estimate.WhiteTerritory} " +
+            $"capturedBlackPrisoners {estimate.CapturedBlackPrisoners} " +
+            $"capturedWhitePrisoners {estimate.CapturedWhitePrisoners}");
     }
 
     private string FormatPrincipalVariation(GtpAnalysisMove move)

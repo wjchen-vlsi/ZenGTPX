@@ -8,6 +8,7 @@
 - Return a Zen territory-statistics based area-score estimate for `final_score`.
 - Support first-pass background streaming `lz-analyze` and `kata-analyze` GTP analysis commands backed by `ZenGetTopMoveInfo`.
 - Support minimal KataGo GTP compatibility commands needed by LizzieYzy Next analysis probing.
+- Support ZenGTPX diagnostic commands for policy, territory, and final-score estimate breakdowns.
 - Document the version history baseline for ZenGTPX.
 
 ## 0.1.0

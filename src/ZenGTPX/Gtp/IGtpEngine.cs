@@ -37,4 +37,6 @@ public interface IGtpEngine
     bool Undo(int count);
 
     string EstimateFinalScore();
+
+    GtpFinalScoreEstimate GetFinalScoreEstimate();
 }
