@@ -80,6 +80,14 @@ public sealed class GtpSessionTests
     }
 
     [TestMethod]
+    public void Execute_KnownCommand_KataAnalyze()
+    {
+        var result = Execute("known_command kata-analyze");
+
+        Assert.AreEqual("= true\n\n", result.Response.Format());
+    }
+
+    [TestMethod]
     public void Execute_ListCommands_IncludesFirstVersionCommandSurface()
     {
         var result = Execute("list_commands");
@@ -104,6 +112,14 @@ public sealed class GtpSessionTests
                 "time_left",
                 "showboard",
                 "final_score",
+                "stop",
+                "lz-analyze",
+                "kata-analyze",
+                "kata-set-param",
+                "kata-get-param",
+                "kata-list-params",
+                "kata-get-rules",
+                "kata-time_settings",
                 "zengtp_last_search_info",
                 "quit",
             },
@@ -269,6 +285,55 @@ public sealed class GtpSessionTests
         var result = Execute("genmove b", engine);
 
         Assert.AreEqual("= resign\n\n", result.Response.Format());
+    }
+
+    [TestMethod]
+    public void Execute_KataAnalyze_EmitsRawKataInfoBeforeSuccess()
+    {
+        var engine = new FakeGtpEngine
+        {
+            AnalysisMoves =
+            [
+                new GtpAnalysisMove(GtpMove.Play(new BoardCoordinate(15, 3)), 1700, 0.53421, "Q16 D4"),
+                new GtpAnalysisMove(GtpMove.Play(new BoardCoordinate(3, 15)), 850, 0.498, "D4 Q16"),
+            ],
+        };
+
+        var result = Execute("kata-analyze b 10", engine);
+
+        Assert.AreEqual("=\n\n", result.Response.Format());
+        Assert.AreEqual(
+            "info move Q16 visits 1700 winrate 0.5342 scoreLead 0.0 scoreMean 0.0 prior 0.000 order 0 pv Q16 D4 info move D4 visits 850 winrate 0.4980 scoreLead 0.0 scoreMean 0.0 prior 0.000 order 1 pv D4 Q16\n",
+            result.OutputBeforeResponse);
+        Assert.AreEqual(StoneColor.Black, engine.LastAnalyzeColor);
+    }
+
+    [TestMethod]
+    public void Execute_LzAnalyze_UsesBoardNextColorAndLeelaWinrate()
+    {
+        var engine = new FakeGtpEngine
+        {
+            AnalysisMoves =
+            [
+                new GtpAnalysisMove(GtpMove.Play(new BoardCoordinate(15, 3)), 1700, 0.53421, "Q16 D4"),
+            ],
+        };
+        var session = new GtpSession(engine);
+
+        Execute("play b D16", session);
+        var result = Execute("lz-analyze 10", session);
+
+        Assert.AreEqual("=\n\n", result.Response.Format());
+        Assert.AreEqual("info move Q16 visits 1700 winrate 5342 pv Q16 D4\n", result.OutputBeforeResponse);
+        Assert.AreEqual(StoneColor.White, engine.LastAnalyzeColor);
+    }
+
+    [TestMethod]
+    public void Execute_KataGetParam_ReturnsCompatibilityValue()
+    {
+        var result = Execute("kata-get-param analysisWideRootNoise");
+
+        Assert.AreEqual("= 0.04\n\n", result.Response.Format());
     }
 
     [TestMethod]
@@ -455,9 +520,13 @@ public sealed class GtpSessionTests
 
         public StoneColor LastGenMoveColor { get; private set; }
 
+        public StoneColor LastAnalyzeColor { get; private set; }
+
         public GtpMove NextGeneratedMove { get; init; } = GtpMove.Pass;
 
         public GtpSearchInfo? NextSearchInfo { get; init; }
+
+        public IReadOnlyList<GtpAnalysisMove> AnalysisMoves { get; init; } = [];
 
         public string[] Calls => _calls.ToArray();
 
@@ -524,6 +593,13 @@ public sealed class GtpSessionTests
             _calls.Add($"GenMove:{color}");
             LastSearchInfo = NextSearchInfo;
             return NextGeneratedMove;
+        }
+
+        public IReadOnlyList<GtpAnalysisMove> Analyze(StoneColor color, int maxCandidates)
+        {
+            LastAnalyzeColor = color;
+            _calls.Add($"Analyze:{color}:{maxCandidates}");
+            return AnalysisMoves.Take(maxCandidates).ToArray();
         }
 
         public bool Undo(int count)

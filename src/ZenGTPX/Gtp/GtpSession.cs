@@ -5,6 +5,8 @@ namespace ZenGTPX.Gtp;
 
 public sealed class GtpSession
 {
+    private const int AnalysisCandidateCount = 10;
+
     private static readonly string[] Commands =
     [
         "protocol_version",
@@ -24,11 +26,28 @@ public sealed class GtpSession
         "time_left",
         "showboard",
         "final_score",
+        "stop",
+        "lz-analyze",
+        "kata-analyze",
+        "kata-set-param",
+        "kata-get-param",
+        "kata-list-params",
+        "kata-get-rules",
+        "kata-time_settings",
         "zengtp_last_search_info",
         "quit",
     ];
 
     private static readonly HashSet<string> KnownCommands = new(Commands, StringComparer.Ordinal);
+    private static readonly Dictionary<string, string> KataParameters = new(StringComparer.Ordinal)
+    {
+        ["analysisWideRootNoise"] = "0.04",
+        ["maxTime"] = "2",
+        ["maxVisits"] = "500",
+        ["numSearchThreads"] = "1",
+        ["playoutDoublingAdvantage"] = "0.0",
+    };
+
     private readonly IGtpEngine _engine;
     private readonly BoardState _board;
 
@@ -61,6 +80,14 @@ public sealed class GtpSession
                 "time_left" => TimeLeft(command),
                 "showboard" => ShowBoard(command),
                 "final_score" => FinalScore(command),
+                "stop" => Stop(command),
+                "lz-analyze" => LzAnalyze(command),
+                "kata-analyze" => KataAnalyze(command),
+                "kata-set-param" => KataSetParam(command),
+                "kata-get-param" => KataGetParam(command),
+                "kata-list-params" => KataListParams(command),
+                "kata-get-rules" => KataGetRules(command),
+                "kata-time_settings" => KataTimeSettings(command),
                 "zengtp_last_search_info" => LastSearchInfo(command),
                 "quit" => new GtpExecutionResult(GtpResponse.Success(command.Id), ShouldQuit: true),
                 _ => Error(command, "unknown command"),
@@ -326,6 +353,91 @@ public sealed class GtpSession
                 $"move {FormatMove(searchInfo.Move)} playouts {searchInfo.Playouts} winrate {searchInfo.Winrate:0.0000} time {searchInfo.TimeSeconds:0.000}"));
     }
 
+    private static GtpExecutionResult Stop(GtpCommand command)
+    {
+        if (command.Arguments.Count != 0)
+        {
+            return Error(command, "stop does not accept arguments");
+        }
+
+        return Success(command, "");
+    }
+
+    private GtpExecutionResult LzAnalyze(GtpCommand command)
+    {
+        if (command.Arguments.Count > 1)
+        {
+            return Error(command, "lz-analyze accepts at most one visits argument");
+        }
+
+        var moves = _engine.Analyze(_board.NextColor, AnalysisCandidateCount);
+        return AnalysisSuccess(command, FormatLzAnalysis(moves));
+    }
+
+    private GtpExecutionResult KataAnalyze(GtpCommand command)
+    {
+        if (command.Arguments.Count is < 1 or > 2)
+        {
+            return Error(command, "kata-analyze requires color and optional visits argument");
+        }
+
+        var color = ParseColor(command.Arguments[0]);
+        var moves = _engine.Analyze(color, AnalysisCandidateCount);
+        return AnalysisSuccess(command, FormatKataAnalysis(moves));
+    }
+
+    private static GtpExecutionResult KataSetParam(GtpCommand command)
+    {
+        if (command.Arguments.Count < 2)
+        {
+            return Error(command, "kata-set-param requires name and value");
+        }
+
+        return Success(command, "");
+    }
+
+    private static GtpExecutionResult KataGetParam(GtpCommand command)
+    {
+        if (command.Arguments.Count != 1)
+        {
+            return Error(command, "kata-get-param requires one parameter name");
+        }
+
+        return Success(command, KataParameters.GetValueOrDefault(command.Arguments[0], ""));
+    }
+
+    private static GtpExecutionResult KataListParams(GtpCommand command)
+    {
+        if (command.Arguments.Count != 0)
+        {
+            return Error(command, "kata-list-params does not accept arguments");
+        }
+
+        return Success(command, string.Join('\n', KataParameters.Keys.Order(StringComparer.Ordinal)));
+    }
+
+    private static GtpExecutionResult KataGetRules(GtpCommand command)
+    {
+        if (command.Arguments.Count != 0)
+        {
+            return Error(command, "kata-get-rules does not accept arguments");
+        }
+
+        return Success(
+            command,
+            "{\"ko\":\"SIMPLE\",\"scoring\":\"AREA\",\"tax\":\"NONE\",\"multiStoneSuicideLegal\":false,\"hasButton\":false,\"whiteHandicapBonus\":\"N\",\"friendlyPassOk\":false}");
+    }
+
+    private static GtpExecutionResult KataTimeSettings(GtpCommand command)
+    {
+        if (command.Arguments.Count == 0)
+        {
+            return Error(command, "kata-time_settings requires arguments");
+        }
+
+        return Success(command, "");
+    }
+
     private static StoneColor ParseColor(string value)
     {
         return value.ToLowerInvariant() switch
@@ -394,9 +506,47 @@ public sealed class GtpSession
         return GtpVertex.Format(coordinate, _engine.BoardSize);
     }
 
+    private string FormatKataAnalysis(IReadOnlyList<GtpAnalysisMove> moves)
+    {
+        return string.Join(
+            " ",
+            moves.Select(
+                (move, index) => string.Create(
+                    CultureInfo.InvariantCulture,
+                    $"info move {FormatMove(move.Move)} visits {move.Playouts} winrate {move.Winrate:0.0000} scoreLead 0.0 scoreMean 0.0 prior 0.000 order {index} pv {FormatPrincipalVariation(move)}")));
+    }
+
+    private string FormatLzAnalysis(IReadOnlyList<GtpAnalysisMove> moves)
+    {
+        return string.Join(
+            '\n',
+            moves.Select(
+                move => string.Create(
+                    CultureInfo.InvariantCulture,
+                    $"info move {FormatMove(move.Move)} visits {move.Playouts} winrate {ToLeelaWinrate(move.Winrate)} pv {FormatPrincipalVariation(move)}")));
+    }
+
+    private string FormatPrincipalVariation(GtpAnalysisMove move)
+    {
+        return string.IsNullOrWhiteSpace(move.PrincipalVariation)
+            ? FormatMove(move.Move)
+            : move.PrincipalVariation.Trim();
+    }
+
+    private static int ToLeelaWinrate(double winrate)
+    {
+        return Math.Clamp((int)Math.Round(winrate * 10000, MidpointRounding.AwayFromZero), 0, 10000);
+    }
+
     private static GtpExecutionResult Success(GtpCommand command, string body)
     {
         return new GtpExecutionResult(GtpResponse.Success(command.Id, body), ShouldQuit: false);
+    }
+
+    private static GtpExecutionResult AnalysisSuccess(GtpCommand command, string analysisOutput)
+    {
+        var output = analysisOutput.Length == 0 ? "" : analysisOutput + "\n";
+        return new GtpExecutionResult(GtpResponse.Success(command.Id), ShouldQuit: false, OutputBeforeResponse: output);
     }
 
     private static GtpExecutionResult Error(GtpCommand command, string body)

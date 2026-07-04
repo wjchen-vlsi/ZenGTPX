@@ -179,6 +179,36 @@ public sealed class ZenEngine : IGtpEngine, IDisposable
         return move;
     }
 
+    public IReadOnlyList<GtpAnalysisMove> Analyze(StoneColor color, int maxCandidates)
+    {
+        if (maxCandidates <= 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(maxCandidates), "Analysis candidate count must be positive.");
+        }
+
+        var candidateCount = Math.Min(maxCandidates, 10);
+        var zenColor = (int)color;
+        _native.SetNextColor(zenColor);
+        _ = ThinkUntilTopMove(zenColor);
+
+        var moves = new List<GtpAnalysisMove>(candidateCount);
+        for (var index = 0; index < candidateCount; index++)
+        {
+            var topMove = _native.GetTopMoveInfo(index);
+            if (topMove.Playouts <= 0 || !IsOnBoard(topMove.X, topMove.Y))
+            {
+                continue;
+            }
+
+            var move = GtpMove.Play(new BoardCoordinate(topMove.X, topMove.Y));
+            var vertex = GtpVertex.Format(move.Coordinate.Value, _boardSize);
+            var pv = string.IsNullOrWhiteSpace(topMove.Text) ? vertex : topMove.Text.Trim();
+            moves.Add(new GtpAnalysisMove(move, topMove.Playouts, topMove.Winrate, pv));
+        }
+
+        return moves;
+    }
+
     public bool Undo(int count)
     {
         if (count <= 0)

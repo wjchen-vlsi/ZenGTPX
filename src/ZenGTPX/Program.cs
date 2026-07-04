@@ -19,6 +19,11 @@ while (Console.In.ReadLine() is { } line)
     }
 
     var result = session.Execute(command);
+    if (result.OutputBeforeResponse.Length > 0)
+    {
+        Console.Out.Write(result.OutputBeforeResponse);
+    }
+
     Console.Out.Write(result.Response.Format());
     Console.Out.Flush();
 

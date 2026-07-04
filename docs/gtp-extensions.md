@@ -3,6 +3,37 @@
 This document describes ZenGTPX-specific GTP commands for scripts and diagnostics.
 These commands are not part of GTP v2 and should not be treated as Lizzie or KataGo analysis protocols.
 
+## Lizzie / KataGo-style GTP analysis commands
+
+ZenGTPX supports first-pass GTP analysis commands for GUI candidate display:
+
+- `lz-analyze [visits]`
+- `kata-analyze <color> [visits]`
+- `stop`
+
+Both commands run a synchronous Zen search, read candidates from `ZenGetTopMoveInfo(index)`, emit `info move ...` analysis lines, then terminate the GTP response with `=`.
+
+`kata-analyze` emits one line containing multiple KataGo-style `info move` entries:
+
+```text
+info move Q16 visits 1700 winrate 0.5342 scoreLead 0.0 scoreMean 0.0 prior 0.000 order 0 pv Q16 D4 info move D4 visits 850 winrate 0.4980 scoreLead 0.0 scoreMean 0.0 prior 0.000 order 1 pv D4 Q16
+=
+```
+
+`lz-analyze` emits Leela-style `winrate` values in 0..10000 format:
+
+```text
+info move Q16 visits 1700 winrate 5342 pv Q16 D4
+=
+```
+
+Current limitations:
+
+- Analysis is synchronous and one-shot; it is not yet a background stream that continues until `stop`.
+- Candidate coordinates, playouts, winrate, and PV text come from `ZenGetTopMoveInfo(index)`.
+- `scoreLead`, `scoreMean`, and `prior` are compatibility placeholders because Zen7 does not currently expose equivalent reliable values through the wrapped API.
+- ZenGTPX does not implement KataGo `analysis` JSON protocol.
+
 ## `zengtp_last_search_info`
 
 Returns the search summary recorded by the most recent successful `genmove`.

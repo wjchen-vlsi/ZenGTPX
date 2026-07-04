@@ -26,6 +26,8 @@ public interface IGtpEngine
 
     GtpMove GenMove(StoneColor color);
 
+    IReadOnlyList<GtpAnalysisMove> Analyze(StoneColor color, int maxCandidates);
+
     bool Undo(int count);
 
     string EstimateFinalScore();

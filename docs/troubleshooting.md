@@ -27,6 +27,8 @@ zenDll = Zen.dll
 
 ## LizzieYzy Next Cannot Use The Engine
 
-確認 ZenGTPX 是作為一般 GTP engine 加入，而不是 analysis engine。
+確認 ZenGTPX 是作為一般 GTP engine 加入。
+
+ZenGTPX 支援第一版 `lz-analyze` / `kata-analyze` GTP analysis commands，但不支援 KataGo `analysis` JSON protocol。不要把 ZenGTPX 設成 KataGo analysis JSON engine。
 
 後續版本會補更多錯誤案例。

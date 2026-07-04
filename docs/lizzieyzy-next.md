@@ -31,7 +31,8 @@ Arguments:
 
 ## Notes
 
-- 不要將 ZenGTPX 設為 analysis engine。
-- 第一版目標是一般 GTP 對弈流程。
+- ZenGTPX 仍應優先作為一般 GTP engine 加入。
+- 已支援第一版 `lz-analyze` / `kata-analyze` GTP analysis commands，用於候選點顯示。
+- 不要將 ZenGTPX 設為 KataGo analysis JSON engine；ZenGTPX 不支援 `katago analysis` JSON protocol。
 - `final_score` 為 Zen territory statistics 推算的估分，不是完整終局數子裁判。
 - `Zen.dll` 必須由使用者自行合法提供。

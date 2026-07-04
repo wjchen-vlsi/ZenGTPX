@@ -16,6 +16,8 @@ public sealed class BoardState
 
     public int BoardSize { get; private set; }
 
+    public StoneColor NextColor => _moves.Count % 2 == 0 ? StoneColor.Black : StoneColor.White;
+
     public void SetBoardSize(int boardSize)
     {
         ValidateBoardSize(boardSize);

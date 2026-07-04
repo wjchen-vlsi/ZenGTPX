@@ -6,6 +6,8 @@
 - Support `fixed_handicap` and `place_free_handicap` GTP commands with deterministic standard star-point placement.
 - Forward GTP `time_settings` and `time_left` to Zen native time APIs while preserving the wrapper move deadline.
 - Return a Zen territory-statistics based area-score estimate for `final_score`.
+- Support first-pass `lz-analyze` and `kata-analyze` GTP analysis commands backed by `ZenGetTopMoveInfo`.
+- Support minimal KataGo GTP compatibility commands needed by LizzieYzy Next analysis probing.
 - Document the version history baseline for ZenGTPX.
 
 ## 0.1.0
@@ -18,5 +20,4 @@
 ## Planned
 
 ### 0.3.0
-- Minimal Lizzie-compatible `lz-analyze` support for candidate move display.
-- `stop` command support for interrupting active analysis.
+- Background streaming analysis and `stop` interruption semantics.
