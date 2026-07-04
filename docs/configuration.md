@@ -112,4 +112,4 @@ These are used directly only with `mode = advanced`; `mode = rank` and `mode = f
 - `final_score` returns an area-score estimate from Zen territory statistics, not a full ruleset adjudication.
 - `zengtp_final_score_detail` returns the estimate breakdown for scripts and diagnostics, including territory-derived area counts, prisoner counters, and a clearly labeled capture-adjusted diagnostic estimate.
 - Config `handicap` is a passive game parameter. It does not place stones or change board state by itself.
-- Actual handicap placement remains controlled by GTP `fixed_handicap` / `place_free_handicap`.
+- Actual handicap placement remains controlled by GTP `fixed_handicap`, `set_free_handicap`, or `place_free_handicap`.

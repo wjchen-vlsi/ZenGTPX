@@ -8,6 +8,7 @@
 - Return a Zen territory-statistics based area-score estimate for `final_score`.
 - Support first-pass background streaming `lz-analyze` and `kata-analyze` GTP analysis commands backed by `ZenGetTopMoveInfo`.
 - Support minimal KataGo GTP compatibility commands needed by LizzieYzy Next analysis probing.
+- Support `set_free_handicap` as a GTP-compatible free handicap placement command.
 - Support ZenGTPX diagnostic commands for policy, territory, and final-score estimate breakdowns.
 - Harden GTP lifecycle state handling for occupied moves, generated moves, pass moves, handicap placement, undo, and clear-board flows.
 - Reject negative `time_left` stone counts before forwarding time updates to the engine.

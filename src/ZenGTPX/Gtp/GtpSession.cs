@@ -22,6 +22,7 @@ public sealed class GtpSession
         "genmove",
         "undo",
         "fixed_handicap",
+        "set_free_handicap",
         "place_free_handicap",
         "time_settings",
         "time_left",
@@ -84,6 +85,7 @@ public sealed class GtpSession
                 "genmove" => GenMove(command),
                 "undo" => Undo(command),
                 "fixed_handicap" => FixedHandicap(command),
+                "set_free_handicap" => FreeHandicap(command, "set_free_handicap"),
                 "place_free_handicap" => PlaceFreeHandicap(command),
                 "time_settings" => TimeSettings(command),
                 "time_left" => TimeLeft(command),
@@ -301,9 +303,14 @@ public sealed class GtpSession
 
     private GtpExecutionResult PlaceFreeHandicap(GtpCommand command)
     {
+        return FreeHandicap(command, "place_free_handicap");
+    }
+
+    private GtpExecutionResult FreeHandicap(GtpCommand command, string commandName)
+    {
         if (command.Arguments.Count == 0)
         {
-            return Error(command, "place_free_handicap requires at least one vertex");
+            return Error(command, $"{commandName} requires at least one vertex");
         }
 
         var coordinates = new List<BoardCoordinate>(command.Arguments.Count);

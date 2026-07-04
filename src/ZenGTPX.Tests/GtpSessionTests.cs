@@ -56,6 +56,14 @@ public sealed class GtpSessionTests
     }
 
     [TestMethod]
+    public void Execute_KnownCommand_SetFreeHandicap()
+    {
+        var result = Execute("known_command set_free_handicap");
+
+        Assert.AreEqual("= true\n\n", result.Response.Format());
+    }
+
+    [TestMethod]
     public void Execute_KnownCommand_ShowBoard()
     {
         var result = Execute("known_command showboard");
@@ -131,6 +139,7 @@ public sealed class GtpSessionTests
                 "genmove",
                 "undo",
                 "fixed_handicap",
+                "set_free_handicap",
                 "place_free_handicap",
                 "time_settings",
                 "time_left",
@@ -624,6 +633,53 @@ public sealed class GtpSessionTests
     }
 
     [TestMethod]
+    public void Execute_SetFreeHandicap_PlacesProvidedVertices()
+    {
+        var engine = new FakeGtpEngine();
+        var result = Execute("set_free_handicap D16 Q16 D4", engine);
+
+        Assert.AreEqual("= D16 Q16 D4\n\n", result.Response.Format());
+        CollectionAssert.AreEqual(
+            new[]
+            {
+                "Play:Black:D16",
+                "Play:Black:Q16",
+                "Play:Black:D4",
+            },
+            engine.Calls);
+    }
+
+    [TestMethod]
+    public void Execute_SetFreeHandicap_RejectsMissingVertices()
+    {
+        var engine = new FakeGtpEngine();
+        var result = Execute("set_free_handicap", engine);
+
+        Assert.AreEqual("? set_free_handicap requires at least one vertex\n\n", result.Response.Format());
+        CollectionAssert.AreEqual(Array.Empty<string>(), engine.Calls);
+    }
+
+    [TestMethod]
+    public void Execute_SetFreeHandicap_RejectsDuplicateVertexBeforeEngineCall()
+    {
+        var engine = new FakeGtpEngine();
+        var result = Execute("set_free_handicap D16 D16", engine);
+
+        Assert.AreEqual("? point D16 is already occupied\n\n", result.Response.Format());
+        CollectionAssert.AreEqual(Array.Empty<string>(), engine.Calls);
+    }
+
+    [TestMethod]
+    public void Execute_SetFreeHandicap_RejectsPassVertex()
+    {
+        var engine = new FakeGtpEngine();
+        var result = Execute("set_free_handicap D16 pass", engine);
+
+        Assert.AreEqual("? invalid handicap vertex: pass\n\n", result.Response.Format());
+        CollectionAssert.AreEqual(Array.Empty<string>(), engine.Calls);
+    }
+
+    [TestMethod]
     public void Execute_PlaceFreeHandicap_RejectsDuplicateVertexBeforeEngineCall()
     {
         var engine = new FakeGtpEngine();
@@ -644,6 +700,26 @@ public sealed class GtpSessionTests
 
         Assert.AreEqual("? point D4 is already occupied\n\n", result.Response.Format());
         CollectionAssert.AreEqual(new[] { "Play:Black:D4" }, engine.Calls);
+    }
+
+    [TestMethod]
+    public void Execute_SetFreeHandicapUndoAndClearBoard_UpdateBoardState()
+    {
+        var engine = new FakeGtpEngine();
+        var session = new GtpSession(engine);
+
+        Execute("set_free_handicap D16 Q16 D4", session);
+        var withHandicap = Execute("showboard", session);
+        Execute("undo 3", session);
+        var afterUndo = Execute("showboard", session);
+        Execute("set_free_handicap D16 Q16 D4", session);
+        Execute("clear_board", session);
+        var afterClear = Execute("showboard", session);
+
+        StringAssert.Contains(withHandicap.Response.Body, "16 . . . X . . . . . . . . . . . X . . . 16");
+        StringAssert.Contains(withHandicap.Response.Body, " 4 . . . X . . . . . . . . . . . . . . . 4");
+        Assert.IsFalse(afterUndo.Response.Body.Contains('X'));
+        Assert.IsFalse(afterClear.Response.Body.Contains('X'));
     }
 
     [TestMethod]
