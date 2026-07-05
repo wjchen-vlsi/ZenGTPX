@@ -1013,12 +1013,48 @@ public sealed class GtpSessionTests
     [TestMethod]
     public void Execute_TimeSettings_AllowsZeroSettings()
     {
-        var engine = new FakeGtpEngine();
+        var engine = new FakeGtpEngine { ConfiguredMaxTime = 60 };
+        Execute("kata-set-param maxTime 15", engine);
         var result = Execute("time_settings 0 0 0", engine);
 
         Assert.AreEqual("=\n\n", result.Response.Format());
-        Assert.AreEqual(0.0, engine.MaxTime);
+        Assert.AreEqual(60.0, engine.MaxTime);
         CollectionAssert.Contains(engine.Calls, "SetTimeSettings:0:0:0");
+    }
+
+    [TestMethod]
+    public void Execute_KataSetParam_MaxTime_OverridesRuntimeMaxTime()
+    {
+        var engine = new FakeGtpEngine();
+        var result = Execute("kata-set-param maxTime 15", engine);
+
+        Assert.AreEqual("=\n\n", result.Response.Format());
+        Assert.AreEqual(15.0, engine.MaxTime);
+        CollectionAssert.Contains(engine.Calls, "SetMaxTime:15");
+    }
+
+    [TestMethod]
+    public void Execute_KataSetParam_MaxTimeZero_RestoresConfiguredMaxTime()
+    {
+        var engine = new FakeGtpEngine { ConfiguredMaxTime = 60 };
+        Execute("kata-set-param maxTime 15", engine);
+        var result = Execute("kata-set-param maxTime 0", engine);
+
+        Assert.AreEqual("=\n\n", result.Response.Format());
+        Assert.AreEqual(60.0, engine.MaxTime);
+        CollectionAssert.Contains(engine.Calls, "ResetMaxTime");
+    }
+
+    [DataTestMethod]
+    [DataRow("kata-set-param maxTime -1", "? kata-set-param maxTime must not be negative\n\n")]
+    [DataRow("kata-set-param maxTime abc", "? kata-set-param maxTime must be numeric\n\n")]
+    public void Execute_KataSetParam_InvalidMaxTime_ReturnsCommandSpecificError(string command, string expected)
+    {
+        var engine = new FakeGtpEngine();
+        var result = Execute(command, engine);
+
+        Assert.AreEqual(expected, result.Response.Format());
+        CollectionAssert.AreEqual(Array.Empty<string>(), engine.Calls);
     }
 
     [TestMethod]
@@ -1282,6 +1318,8 @@ public sealed class GtpSessionTests
 
         public double MaxTime { get; private set; }
 
+        public double ConfiguredMaxTime { get; init; } = 60.0;
+
         public string FinalScore { get; init; } = "W+0.5";
 
         public GtpFinalScoreEstimate FinalScoreEstimate { get; init; } = new(
@@ -1375,9 +1413,24 @@ public sealed class GtpSessionTests
             AddCall($"SetMaxTime:{seconds}");
         }
 
+        public void ResetMaxTime()
+        {
+            MaxTime = ConfiguredMaxTime;
+            AddCall("ResetMaxTime");
+        }
+
         public void SetTimeSettings(double mainTime, double byoyomiTime, int periods)
         {
-            MaxTime = byoyomiTime > 0 ? byoyomiTime : mainTime;
+            var maxTime = byoyomiTime > 0 ? byoyomiTime : mainTime;
+            if (maxTime > 0)
+            {
+                MaxTime = maxTime;
+            }
+            else
+            {
+                ResetMaxTime();
+            }
+
             AddCall($"SetTimeSettings:{mainTime}:{byoyomiTime}:{periods}");
         }
 

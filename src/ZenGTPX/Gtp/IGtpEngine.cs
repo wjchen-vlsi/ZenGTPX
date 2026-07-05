@@ -20,6 +20,8 @@ public interface IGtpEngine
 
     void SetMaxTime(double seconds);
 
+    void ResetMaxTime();
+
     void SetTimeSettings(double mainTime, double byoyomiTime, int periods);
 
     void SetTimeLeft(StoneColor color, double time, int stones);
