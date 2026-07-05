@@ -77,6 +77,7 @@ gtpName = KataGo
 boardSize = 19
 komi = 7.5
 handicap = 0
+runtimeTimeOverride = disabled
 threads = 4
 resignThreshold = 0.1
 ```
@@ -90,6 +91,7 @@ Recommended ranges:
 | `komi` | any number | `6.5` or `7.5` |
 | `handicap` | `0` or greater | `0` |
 | `finalScoreRule` | `japanese`, `territory`, `chinese`, or `area` | `japanese` for Zen7-like play, `area` for Chinese scoring |
+| `runtimeTimeOverride` | `enabled` or `disabled` | `disabled` for LizzieYzy Next rank-preset play |
 | `threads` | positive integer | `1-4` conservative, `8` on 8-core CPUs, `10-12` for stronger play |
 | `resignThreshold` | `0.0` to `1.0` | `0.03-0.10` |
 
@@ -109,9 +111,9 @@ These are used directly only with `mode = advanced`; `mode = rank` and `mode = f
 
 - `gtpName` controls the GTP `name` response only. The default deployment config uses `KataGo` because LizzieYzy Next enables multi-candidate analysis display on its KataGo-compatible path.
 - `gtpName = KataGo` does not mean ZenGTPX supports KataGo `analysis` JSON protocol.
-- `time_settings` / `time_left` are forwarded to Zen native time API where supported; `time_settings` also updates the wrapper's per-move deadline.
-- `kata-set-param maxTime N` with `N > 0` applies a GUI runtime time cap for the current engine session.
-- `kata-set-param maxTime 0` and `time_settings 0 0 0` restore the startup effective `maxTimeSeconds` from `zen7.cfg` / CLI. This lets GUI users set time per move to `0` when they want ZenGTPX to use its own rank preset timing.
+- `runtimeTimeOverride = disabled` makes ZenGTPX ignore GUI runtime time control commands: `time_settings`, `time_left`, and `kata-set-param maxTime`. This applies to both `genmove` and analysis-mode engine games.
+- `runtimeTimeOverride = enabled` forwards `time_settings` / `time_left` to Zen native time APIs where supported, and `kata-set-param maxTime N` with `N > 0` applies a GUI runtime time cap for the current engine session.
+- With runtime time override enabled, `kata-set-param maxTime 0` and `time_settings 0 0 0` restore the startup effective `maxTimeSeconds` from `zen7.cfg` / CLI.
 - `final_score` uses ZenGTP.py-compatible scoring over Zen territory statistics. `finalScoreRule = japanese` / `territory` uses territory scoring; `chinese` / `area` uses area scoring.
 - `final_status_list alive|dead|seki` is a compatibility stub that returns an empty list; ZenGTPX does not currently provide reliable dead-stone adjudication.
 - `zengtp_final_score_detail` returns the estimate breakdown for scripts and diagnostics, including configured, area, territory, and capture-adjusted values.

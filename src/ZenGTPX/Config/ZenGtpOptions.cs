@@ -21,6 +21,8 @@ public sealed record ZenGtpOptions
 
     public string FinalScoreRule { get; init; } = "japanese";
 
+    public string RuntimeTimeOverride { get; init; } = "enabled";
+
     public int Threads { get; init; } = 4;
 
     public double MaxTimeSeconds { get; init; } = 60.0;
@@ -62,6 +64,11 @@ public sealed record ZenGtpOptions
         if (!IsSupportedFinalScoreRule(FinalScoreRule))
         {
             throw new InvalidOperationException("finalScoreRule must be one of: japanese, territory, chinese, area.");
+        }
+
+        if (!IsSupportedRuntimeTimeOverride(RuntimeTimeOverride))
+        {
+            throw new InvalidOperationException("runtimeTimeOverride must be one of: enabled, disabled.");
         }
 
         if (Threads <= 0)
@@ -106,12 +113,20 @@ public sealed record ZenGtpOptions
             || rule.Equals("area", StringComparison.OrdinalIgnoreCase);
     }
 
+    private static bool IsSupportedRuntimeTimeOverride(string value)
+    {
+        return value.Equals("enabled", StringComparison.OrdinalIgnoreCase)
+            || value.Equals("disabled", StringComparison.OrdinalIgnoreCase);
+    }
+
     public string ResolveZenDllPath(string baseDirectory)
     {
         return Path.IsPathRooted(ZenDll)
             ? Path.GetFullPath(ZenDll)
             : Path.GetFullPath(Path.Combine(baseDirectory, ZenDll));
     }
+
+    public bool RuntimeTimeOverrideEnabled => RuntimeTimeOverride.Equals("enabled", StringComparison.OrdinalIgnoreCase);
 }
 
 public static class ZenGtpOptionsLoader
@@ -205,6 +220,7 @@ public static class ZenGtpOptionsLoader
             "komi" => options with { Komi = ParseDouble(value, key, lineNumber) },
             "handicap" => options with { Handicap = ParseInt(value, key, lineNumber) },
             "finalscorerule" => options with { FinalScoreRule = value },
+            "runtimetimeoverride" => options with { RuntimeTimeOverride = value },
             "threads" => options with { Threads = ParseInt(value, key, lineNumber) },
             "maxtimeseconds" => options with { MaxTimeSeconds = ParseDouble(value, key, lineNumber) },
             "maxtime" => options with { MaxTimeSeconds = ParseDouble(value, key, lineNumber) },
@@ -230,6 +246,7 @@ public static class ZenGtpOptionsLoader
             Komi = GetDoubleArgument(args, "--komi") ?? normalized.Komi,
             Handicap = GetIntArgument(args, "--handicap") ?? normalized.Handicap,
             FinalScoreRule = GetArgumentValue(args, "--finalScoreRule") ?? normalized.FinalScoreRule,
+            RuntimeTimeOverride = GetArgumentValue(args, "--runtimeTimeOverride") ?? normalized.RuntimeTimeOverride,
             Threads = GetIntArgument(args, "--threads") ?? normalized.Threads,
             MaxTimeSeconds = GetDoubleArgument(args, "--maxTimeSeconds") ?? GetDoubleArgument(args, "--maxTime") ?? normalized.MaxTimeSeconds,
             MaxSimulations = GetIntArgument(args, "--maxSimulations") ?? normalized.MaxSimulations,

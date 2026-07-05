@@ -10,6 +10,8 @@ public interface IGtpEngine
 
     GtpSearchInfo? LastSearchInfo { get; }
 
+    bool RuntimeTimeOverrideEnabled { get; }
+
     void SetBoardSize(int boardSize);
 
     void ClearBoard();

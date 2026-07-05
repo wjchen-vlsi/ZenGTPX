@@ -35,7 +35,8 @@ If the GUI requires explicit arguments, use:
 - ZenGTPX supports first-pass background streaming `lz-analyze` / `kata-analyze` / `analyze` GTP analysis commands for candidate and winrate display.
 - ZenGTPX supports `lz-genmove_analyze` / `kata-genmove_analyze` / `genmove_analyze` for LizzieYzy Next engine-game mode.
 - To display multiple candidates, keep `gtpName = KataGo` in `zen7.cfg`. This only affects the GTP `name` response and is used by LizzieYzy Next's KataGo-compatible display path.
-- In engine-game settings, a positive time per move is treated as a GUI runtime time cap. Set time per move to `0` when you want ZenGTPX to use the effective timing from `zen7.cfg`, such as `mode = rank` / `rankPreset = 9d`.
+- For rank-preset play, keep `runtimeTimeOverride = disabled` in `zen7.cfg`. If LizzieYzy Next does not accept `0` seconds per move, set a large GUI value such as `999`; ZenGTPX will ignore the GUI runtime time command and keep its cfg timing.
+- If `runtimeTimeOverride = enabled`, a positive GUI time per move is treated as a runtime time cap. `0` restores the effective timing from `zen7.cfg` when the GUI supports it.
 - Do not configure ZenGTPX as a KataGo analysis JSON engine; ZenGTPX does not support the `katago analysis` JSON protocol.
 - `final_score` uses a ZenGTP.py-compatible formula based on `finalScoreRule`; the default is `japanese`, and it can be changed to `chinese` / `area`. The result still depends on Zen territory statistics for dead-stone classification.
 - `Zen.dll` must be legally provided by the user.

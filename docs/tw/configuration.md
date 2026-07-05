@@ -77,6 +77,7 @@ gtpName = KataGo
 boardSize = 19
 komi = 7.5
 handicap = 0
+runtimeTimeOverride = disabled
 threads = 4
 resignThreshold = 0.1
 ```
@@ -90,6 +91,7 @@ resignThreshold = 0.1
 | `komi` | 任意數值 | `6.5` 或 `7.5` |
 | `handicap` | `0` 或更大 | `0` |
 | `finalScoreRule` | `japanese`, `territory`, `chinese`, 或 `area` | 類 Zen7 對局用 `japanese`；中國規則計分用 `area` |
+| `runtimeTimeOverride` | `enabled` 或 `disabled` | LizzieYzy Next rank preset 對局建議 `disabled` |
 | `threads` | 正整數 | 保守值 `1-4`，8 核心 CPU 可用 `8`，較強棋力可測 `10-12` |
 | `resignThreshold` | `0.0` to `1.0` | `0.03-0.10` |
 
@@ -109,9 +111,9 @@ resignThreshold = 0.1
 
 - `gtpName` 只控制 GTP `name` 回應。預設部署設定使用 `KataGo`，因為 LizzieYzy Next 會在 KataGo-compatible 路徑啟用多候選點分析顯示。
 - `gtpName = KataGo` 不代表 ZenGTPX 支援 KataGo `analysis` JSON protocol。
-- `time_settings` / `time_left` 會在支援時轉送到 Zen 原生時間 API；`time_settings` 也會更新 wrapper 的每手期限。
-- `kata-set-param maxTime N` 且 `N > 0` 時，會套用 GUI runtime 每手時間上限。
-- `kata-set-param maxTime 0` 與 `time_settings 0 0 0` 會恢復啟動時由 `zen7.cfg` / CLI 得到的 effective `maxTimeSeconds`。若希望 ZenGTPX 使用自己的 rank preset 時間，GUI 每手用時可設為 `0`。
+- `runtimeTimeOverride = disabled` 時，ZenGTPX 會忽略 GUI runtime 時間控制命令：`time_settings`、`time_left` 與 `kata-set-param maxTime`。此語意同時適用於 `genmove` 與 analysis mode 引擎對局。
+- `runtimeTimeOverride = enabled` 時，`time_settings` / `time_left` 會在支援時轉送到 Zen 原生時間 API，且 `kata-set-param maxTime N` 且 `N > 0` 時會套用 GUI runtime 每手時間上限。
+- 啟用 runtime time override 時，`kata-set-param maxTime 0` 與 `time_settings 0 0 0` 會恢復啟動時由 `zen7.cfg` / CLI 得到的 effective `maxTimeSeconds`。
 - `final_score` 使用 ZenGTP.py 相容公式，依 Zen territory statistics 估算。`finalScoreRule = japanese` / `territory` 使用 territory scoring；`chinese` / `area` 使用 area scoring。
 - `final_status_list alive|dead|seki` 是相容性 stub，會回傳空清單；ZenGTPX 目前不提供可靠的死子判定。
 - `zengtp_final_score_detail` 會回傳 scripts 與診斷用的估算拆解，包含 configured、area、territory 與 capture-adjusted 數值。

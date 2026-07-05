@@ -415,7 +415,10 @@ public sealed class GtpSession
 
         lock (_engineLock)
         {
-            _engine.SetTimeSettings(mainTime, byoyomiTime, periods);
+            if (_engine.RuntimeTimeOverrideEnabled)
+            {
+                _engine.SetTimeSettings(mainTime, byoyomiTime, periods);
+            }
         }
 
         return Success(command, "");
@@ -446,7 +449,10 @@ public sealed class GtpSession
 
         lock (_engineLock)
         {
-            _engine.SetTimeLeft(color, time, stones);
+            if (_engine.RuntimeTimeOverrideEnabled)
+            {
+                _engine.SetTimeLeft(color, time, stones);
+            }
         }
 
         return Success(command, "");
@@ -734,13 +740,16 @@ public sealed class GtpSession
 
             lock (_engineLock)
             {
-                if (maxTime > 0)
+                if (_engine.RuntimeTimeOverrideEnabled)
                 {
-                    _engine.SetMaxTime(maxTime);
-                }
-                else
-                {
-                    _engine.ResetMaxTime();
+                    if (maxTime > 0)
+                    {
+                        _engine.SetMaxTime(maxTime);
+                    }
+                    else
+                    {
+                        _engine.ResetMaxTime();
+                    }
                 }
             }
         }
