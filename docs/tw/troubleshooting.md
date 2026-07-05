@@ -1,6 +1,6 @@
-# Troubleshooting
+# 疑難排解
 
-## Zen.dll was not found
+## 找不到 Zen.dll
 
 確認 `Zen.dll` 與 `ZenGTPX.exe` 在同一層：
 
@@ -16,7 +16,7 @@ zen7.cfg
 zenDll = Zen.dll
 ```
 
-## Engine Does Not Start
+## Engine 無法啟動
 
 確認：
 
@@ -25,7 +25,7 @@ zenDll = Zen.dll
 - `zen7.cfg` 與 `Zen.dll` 路徑正確。
 - GUI 的 working directory 設為 `ZenGTPX.exe` 所在目錄。
 
-## LizzieYzy Next Cannot Use The Engine
+## LizzieYzy Next 無法使用 Engine
 
 確認 ZenGTPX 是作為一般 GTP engine 加入。
 

@@ -9,10 +9,12 @@ if (engine is null)
 }
 
 var outputLock = new object();
+using var trace = CreateTraceWriter();
 var session = new GtpSession(engine, WriteAnalysisOutput);
 
 while (Console.In.ReadLine() is { } line)
 {
+    Trace("< " + line);
     var command = GtpCommandParser.Parse(line);
     if (command is null)
     {
@@ -20,6 +22,12 @@ while (Console.In.ReadLine() is { } line)
     }
 
     var result = session.Execute(command);
+    if (result.OutputBeforeResponse.Length > 0)
+    {
+        Trace("> " + result.OutputBeforeResponse.TrimEnd());
+    }
+
+    Trace("> " + result.Response.Format().TrimEnd());
     lock (outputLock)
     {
         if (result.OutputBeforeResponse.Length > 0)
@@ -57,9 +65,43 @@ static ZenEngine? InitializeZen(string[] args)
 
 void WriteAnalysisOutput(string output)
 {
+    Trace("> " + output.TrimEnd());
     lock (outputLock)
     {
         Console.Out.Write(output);
         Console.Out.Flush();
     }
+}
+
+static StreamWriter? CreateTraceWriter()
+{
+    var path = Environment.GetEnvironmentVariable("ZENGTPX_TRACE_PATH");
+    if (string.IsNullOrWhiteSpace(path))
+    {
+        return null;
+    }
+
+    try
+    {
+        var directory = Path.GetDirectoryName(Path.GetFullPath(path));
+        if (!string.IsNullOrEmpty(directory))
+        {
+            Directory.CreateDirectory(directory);
+        }
+
+        return new StreamWriter(new FileStream(path, FileMode.Append, FileAccess.Write, FileShare.ReadWrite))
+        {
+            AutoFlush = true,
+        };
+    }
+    catch (Exception ex)
+    {
+        Console.Error.WriteLine($"ZenGTPX trace disabled: {ex.Message}");
+        return null;
+    }
+}
+
+void Trace(string message)
+{
+    trace?.WriteLine($"{DateTimeOffset.Now:yyyy-MM-dd HH:mm:ss.fff zzz} {message}");
 }

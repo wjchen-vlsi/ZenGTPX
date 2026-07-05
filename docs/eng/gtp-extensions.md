@@ -9,11 +9,16 @@ ZenGTPX supports first-pass GTP analysis commands for GUI candidate display:
 
 - `lz-analyze [visits]`
 - `kata-analyze <color> [visits]`
+- `analyze <color> [visits]`
+- `lz-genmove_analyze [color] [interval]`
+- `kata-genmove_analyze [color] [interval]`
+- `genmove_analyze [color] [interval]`
 - `stop`
 
-With the normal executable entrypoint, both commands acknowledge the GTP command with `=`, then continue emitting background `info move ...` analysis lines until `stop` or a board-changing command is received.
+With the normal executable entrypoint, analysis commands acknowledge the GTP command with `=`, then continue emitting background `info move ...` analysis lines until `stop` or a board-changing command is received.
 Candidate coordinates, playouts, winrate, and PV text are read from `ZenGetTopMoveInfo(index)`.
 `prior` is derived from `ZenGetPolicyKnowledge` by normalizing positive policy values across the returned candidate set.
+`analyze` is accepted as a KataGo-style alias for GUI compatibility.
 
 `kata-analyze` emits one line containing multiple KataGo-style `info move` entries:
 
@@ -37,6 +42,17 @@ Current limitations:
 - `scoreLead` and `scoreMean` are compatibility placeholders derived from winrate because Zen7 does not currently expose reliable equivalent values through the wrapped API.
 - For LizzieYzy Next multi-candidate display, use `gtpName = KataGo` in `zen7.cfg`; this only changes the GTP `name` response.
 - ZenGTPX does not implement KataGo `analysis` JSON protocol.
+
+`lz-genmove_analyze`, `kata-genmove_analyze`, and `genmove_analyze` are compatibility commands for GUI engine-game mode.
+They search a move like `genmove`, emit one analysis line, then finish the same GTP response with:
+
+```text
+play <vertex>
+```
+
+The chosen move is applied to the internal board state, matching `genmove` behavior.
+The optional `interval` argument is accepted for GUI compatibility, but ZenGTPX currently emits a single final analysis snapshot rather than a long-running stream.
+`genmove_analyze` is accepted as a KataGo-style alias for GUIs that do not use the `kata-` prefix.
 
 ## `zengtp_last_search_info`
 
@@ -89,20 +105,25 @@ Example:
 
 ```text
 zengtp_final_score_detail
-= areaEstimate W+6.5 areaMargin -6.5 captureAdjustedEstimate W+6.5 captureAdjustedMargin -6.5 threshold 300 komi 6.5 blackArea 0 whiteArea 0 blackAlive 0 blackCapture 0 blackTerritory 0 whiteAlive 0 whiteCapture 0 whiteTerritory 0 capturedBlackPrisoners 0 capturedWhitePrisoners 0
+= rule japanese configuredEstimate W+6.5 areaEstimate W+6.5 areaMargin -6.5 territoryEstimate W+6.5 territoryMargin -6.5 captureAdjustedEstimate W+6.5 captureAdjustedMargin -6.5 threshold 300 komi 6.5 blackArea 0 whiteArea 0 blackTerritoryScore 0 whiteTerritoryScore 0 blackAlive 0 blackCapture 0 blackTerritory 0 whiteAlive 0 whiteCapture 0 whiteTerritory 0 capturedBlackPrisoners 0 capturedWhitePrisoners 0
 ```
 
 Response fields:
 
 | Field | Description |
 | --- | --- |
-| `areaEstimate` | The same area-score estimate format used by `final_score`. |
+| `rule` | Current `finalScoreRule` config value. |
+| `configuredEstimate` | The value returned by `final_score` for the configured rule. |
+| `areaEstimate` | Chinese/area estimate: alive stones plus captured stones classified by territory statistics plus territory, minus komi. |
 | `areaMargin` | Black minus white minus komi, before prisoner adjustment. |
+| `territoryEstimate` | Japanese/territory estimate using the ZenGTP.py-compatible formula. |
+| `territoryMargin` | Black minus white minus komi for `territoryEstimate`. |
 | `captureAdjustedEstimate` | Diagnostic value: `areaMargin + capturedWhitePrisoners - capturedBlackPrisoners`. This is not used as the standard `final_score` response. |
 | `captureAdjustedMargin` | Numeric value behind `captureAdjustedEstimate`. |
 | `threshold` | Territory statistics threshold used by the existing estimate path. |
 | `komi` | Current komi. |
 | `blackArea` / `whiteArea` | Area counts used by the estimate. |
+| `blackTerritoryScore` / `whiteTerritoryScore` | Territory scoring counts: territory plus twice captured stones classified by territory statistics plus native prisoners. |
 | `blackAlive` / `whiteAlive` | Stones counted alive by the territory-statistics estimate. |
 | `blackCapture` / `whiteCapture` | Stones classified as captured by the territory-statistics estimate. |
 | `blackTerritory` / `whiteTerritory` | Empty points classified as territory by the estimate. |
@@ -113,7 +134,7 @@ The wrapped territory API exposes a 19x19 matrix, so this command is supported o
 
 Compatibility notes:
 
-- `areaEstimate` is still an estimate from Zen territory statistics.
+- `areaEstimate` and `territoryEstimate` are still estimates from Zen territory statistics.
 - `captureAdjustedEstimate` is exposed only to help inspect prisoner counters and should not be treated as an official Japanese, Chinese, or territory scoring result.
 - A complete final-score adjudicator would still need explicit rules, dead-stone handling, pass/end-state policy, and scoring validation.
 
@@ -181,6 +202,30 @@ Each following line is:
 It is useful as a relative heatmap value, but it is not guaranteed to match KataGo neural policy prior semantics.
 
 The wrapped Zen API exposes a 19x19 policy matrix, so this command is supported only up to board size 19.
+
+## `territory`
+
+Returns the current `ZenGetTerritoryStatictics` matrix in the legacy ZenGTP format used by LizzieYzy's Zen estimate mode.
+
+This command is provided for GUI compatibility. It is not part of GTP v2, KataGo ownership analysis, or ZenGTPX's structured diagnostic command set.
+
+Example:
+
+```text
+territory
+=
+# 8 -1 -4 -7 1 -3 9 4 8
+# 7 0 9 7 -1 -1 1 11 5
+# -1 5 2 7 -3 -7 -19 -17 -1
+...
+territory
+```
+
+Each matrix row starts with `#`, matching the historical `ZenGTP.py` output shape expected by LizzieYzy's Zen estimate parser.
+Positive and negative values are Zen territory statistics values.
+They are not full final-score adjudication, not KataGo ownership values, and are not used as true `scoreLead` or `scoreMean`.
+
+The command takes no arguments and stops any active background analysis stream before reading the territory matrix.
 
 ## `zengtp_territory`
 

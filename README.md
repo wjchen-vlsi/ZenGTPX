@@ -39,7 +39,7 @@ config\zen7_zh-TW.cfg
 
 可依需要複製其中一份為執行目錄的 `zen7.cfg`。
 
-參數說明見 [docs/configuration.md](docs/configuration.md)。
+參數說明見 [docs/tw/configuration.md](docs/tw/configuration.md)。
 
 ## LizzieYzy Next
 
@@ -49,11 +49,11 @@ config\zen7_zh-TW.cfg
 - Working directory：`ZenGTPX.exe` 所在目錄
 - Arguments：通常可留空；若需要可指定 `--config zen7.cfg`
 
-詳細設定見 [docs/lizzieyzy-next.md](docs/lizzieyzy-next.md)。
+詳細設定見 [docs/tw/lizzieyzy-next.md](docs/tw/lizzieyzy-next.md)。
 
 ## Troubleshooting
 
-常見問題見 [docs/troubleshooting.md](docs/troubleshooting.md)。
+常見問題見 [docs/tw/troubleshooting.md](docs/tw/troubleshooting.md)。
 
 ## Build From Source
 

@@ -89,6 +89,7 @@ Recommended ranges:
 | `boardSize` | `1` to `25` | `19` |
 | `komi` | any number | `6.5` or `7.5` |
 | `handicap` | `0` or greater | `0` |
+| `finalScoreRule` | `japanese`, `territory`, `chinese`, or `area` | `japanese` for Zen7-like play, `area` for Chinese scoring |
 | `threads` | positive integer | `1-4` conservative, `8` on 8-core CPUs, `10-12` for stronger play |
 | `resignThreshold` | `0.0` to `1.0` | `0.03-0.10` |
 
@@ -109,8 +110,8 @@ These are used directly only with `mode = advanced`; `mode = rank` and `mode = f
 - `gtpName` controls the GTP `name` response only. The default deployment config uses `KataGo` because LizzieYzy Next enables multi-candidate analysis display on its KataGo-compatible path.
 - `gtpName = KataGo` does not mean ZenGTPX supports KataGo `analysis` JSON protocol.
 - `time_settings` / `time_left` are forwarded to Zen native time API where supported; `time_settings` also updates the wrapper's per-move deadline.
-- `final_score` returns an area-score estimate from Zen territory statistics, not a full ruleset adjudication.
+- `final_score` uses ZenGTP.py-compatible scoring over Zen territory statistics. `finalScoreRule = japanese` / `territory` uses territory scoring; `chinese` / `area` uses area scoring.
 - `final_status_list alive|dead|seki` is a compatibility stub that returns an empty list; ZenGTPX does not currently provide reliable dead-stone adjudication.
-- `zengtp_final_score_detail` returns the estimate breakdown for scripts and diagnostics, including territory-derived area counts, prisoner counters, and a clearly labeled capture-adjusted diagnostic estimate.
+- `zengtp_final_score_detail` returns the estimate breakdown for scripts and diagnostics, including configured, area, territory, and capture-adjusted values.
 - Config `handicap` is a passive game parameter. It does not place stones or change board state by itself.
 - Actual handicap placement remains controlled by GTP `fixed_handicap`, `set_free_handicap`, or `place_free_handicap`.

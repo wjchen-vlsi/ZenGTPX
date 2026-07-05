@@ -19,6 +19,8 @@ public sealed record ZenGtpOptions
 
     public int Handicap { get; init; } = 0;
 
+    public string FinalScoreRule { get; init; } = "japanese";
+
     public int Threads { get; init; } = 4;
 
     public double MaxTimeSeconds { get; init; } = 60.0;
@@ -57,6 +59,11 @@ public sealed record ZenGtpOptions
             throw new InvalidOperationException("gtpName must not be empty.");
         }
 
+        if (!IsSupportedFinalScoreRule(FinalScoreRule))
+        {
+            throw new InvalidOperationException("finalScoreRule must be one of: japanese, territory, chinese, area.");
+        }
+
         if (Threads <= 0)
         {
             throw new InvalidOperationException("threads must be positive.");
@@ -84,6 +91,19 @@ public sealed record ZenGtpOptions
             || mode.Equals("fixed-time", StringComparison.OrdinalIgnoreCase)
             || mode.Equals("fixedtime", StringComparison.OrdinalIgnoreCase)
             || mode.Equals("advanced", StringComparison.OrdinalIgnoreCase);
+    }
+
+    public static bool IsTerritoryScoringRule(string rule)
+    {
+        return rule.Equals("japanese", StringComparison.OrdinalIgnoreCase)
+            || rule.Equals("territory", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool IsSupportedFinalScoreRule(string rule)
+    {
+        return IsTerritoryScoringRule(rule)
+            || rule.Equals("chinese", StringComparison.OrdinalIgnoreCase)
+            || rule.Equals("area", StringComparison.OrdinalIgnoreCase);
     }
 
     public string ResolveZenDllPath(string baseDirectory)
@@ -184,6 +204,7 @@ public static class ZenGtpOptionsLoader
             "boardsize" => options with { BoardSize = ParseInt(value, key, lineNumber) },
             "komi" => options with { Komi = ParseDouble(value, key, lineNumber) },
             "handicap" => options with { Handicap = ParseInt(value, key, lineNumber) },
+            "finalscorerule" => options with { FinalScoreRule = value },
             "threads" => options with { Threads = ParseInt(value, key, lineNumber) },
             "maxtimeseconds" => options with { MaxTimeSeconds = ParseDouble(value, key, lineNumber) },
             "maxtime" => options with { MaxTimeSeconds = ParseDouble(value, key, lineNumber) },
@@ -208,6 +229,7 @@ public static class ZenGtpOptionsLoader
             BoardSize = GetIntArgument(args, "--boardSize") ?? normalized.BoardSize,
             Komi = GetDoubleArgument(args, "--komi") ?? normalized.Komi,
             Handicap = GetIntArgument(args, "--handicap") ?? normalized.Handicap,
+            FinalScoreRule = GetArgumentValue(args, "--finalScoreRule") ?? normalized.FinalScoreRule,
             Threads = GetIntArgument(args, "--threads") ?? normalized.Threads,
             MaxTimeSeconds = GetDoubleArgument(args, "--maxTimeSeconds") ?? GetDoubleArgument(args, "--maxTime") ?? normalized.MaxTimeSeconds,
             MaxSimulations = GetIntArgument(args, "--maxSimulations") ?? normalized.MaxSimulations,

@@ -266,7 +266,7 @@ public sealed class ZenEngine : IGtpEngine, IDisposable
 
     public string EstimateFinalScore()
     {
-        return GetFinalScoreEstimate().FormatAreaResult();
+        return GetFinalScoreEstimate().FormatConfiguredResult();
     }
 
     public GtpFinalScoreEstimate GetFinalScoreEstimate()
@@ -295,7 +295,8 @@ public sealed class ZenEngine : IGtpEngine, IDisposable
             score.WhiteCapture,
             score.WhiteTerritory,
             _native.GetNumBlackPrisoners(),
-            _native.GetNumWhitePrisoners());
+            _native.GetNumWhitePrisoners(),
+            _options.FinalScoreRule);
     }
 
     private TerritoryScore CalculateTerritoryStats(int threshold, int[,] territory)

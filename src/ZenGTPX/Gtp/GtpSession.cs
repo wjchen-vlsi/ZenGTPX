@@ -32,14 +32,20 @@ public sealed class GtpSession
         "zengtp_final_score_detail",
         "stop",
         "lz-analyze",
+        "lz-genmove_analyze",
         "kata-analyze",
+        "kata-genmove_analyze",
+        "analyze",
+        "genmove_analyze",
         "kata-set-param",
         "kata-get-param",
         "kata-list-params",
         "kata-get-rules",
         "kata-time_settings",
+        "clear_cache",
         "zengtp_last_search_info",
         "zengtp_policy",
+        "territory",
         "zengtp_territory",
         "quit",
     ];
@@ -96,14 +102,20 @@ public sealed class GtpSession
                 "zengtp_final_score_detail" => FinalScoreDetail(command),
                 "stop" => Stop(command),
                 "lz-analyze" => LzAnalyze(command),
+                "lz-genmove_analyze" => LzGenMoveAnalyze(command),
                 "kata-analyze" => KataAnalyze(command),
+                "kata-genmove_analyze" => KataGenMoveAnalyze(command),
+                "analyze" => KataAnalyze(command),
+                "genmove_analyze" => GenMoveAnalyze(command),
                 "kata-set-param" => KataSetParam(command),
                 "kata-get-param" => KataGetParam(command),
                 "kata-list-params" => KataListParams(command),
                 "kata-get-rules" => KataGetRules(command),
                 "kata-time_settings" => KataTimeSettings(command),
+                "clear_cache" => ClearCache(command),
                 "zengtp_last_search_info" => LastSearchInfo(command),
                 "zengtp_policy" => Policy(command),
+                "territory" => LegacyTerritory(command),
                 "zengtp_territory" => Territory(command),
                 "quit" => Quit(command),
                 _ => Error(command, "unknown command"),
@@ -235,13 +247,7 @@ public sealed class GtpSession
 
         var color = ParseColor(command.Arguments[0]);
         StopAnalysis();
-        GtpMove move;
-        lock (_engineLock)
-        {
-            move = _engine.GenMove(color);
-        }
-
-        _board.Play(color, move);
+        var move = GenerateMove(color);
         return Success(command, FormatMove(move));
     }
 
@@ -562,6 +568,23 @@ public sealed class GtpSession
         return Success(command, FormatTerritory(territory));
     }
 
+    private GtpExecutionResult LegacyTerritory(GtpCommand command)
+    {
+        if (command.Arguments.Count != 0)
+        {
+            return Error(command, "territory does not accept arguments");
+        }
+
+        StopAnalysis();
+        int[,] territory;
+        lock (_engineLock)
+        {
+            territory = _engine.GetTerritoryStatistics();
+        }
+
+        return Success(command, "\n" + FormatLegacyTerritory(territory));
+    }
+
     private GtpExecutionResult Stop(GtpCommand command)
     {
         if (command.Arguments.Count != 0)
@@ -611,15 +634,22 @@ public sealed class GtpSession
 
     private GtpExecutionResult KataAnalyze(GtpCommand command)
     {
-        if (command.Arguments.Count is < 1 or > 2)
+        if (command.Arguments.Count > 2)
         {
-            return Error(command, "kata-analyze requires color and optional visits argument");
+            return Error(command, "kata-analyze accepts optional color and optional visits argument");
         }
 
-        var color = ParseColor(command.Arguments[0]);
-        if (command.Arguments.Count == 2)
+        var color = _board.NextColor;
+        var visitsIndex = 0;
+        if (command.Arguments.Count > 0 && TryParseColor(command.Arguments[0], out var explicitColor))
         {
-            if (!TryParseInteger(command.Arguments[1], out var visits))
+            color = explicitColor;
+            visitsIndex = 1;
+        }
+
+        if (command.Arguments.Count > visitsIndex)
+        {
+            if (!TryParseInteger(command.Arguments[visitsIndex], out var visits))
             {
                 return Error(command, "kata-analyze visits must be an integer");
             }
@@ -643,6 +673,42 @@ public sealed class GtpSession
 
         StartAnalysisStream(color, FormatKataAnalysis);
         return Success(command, "");
+    }
+
+    private GtpExecutionResult LzGenMoveAnalyze(GtpCommand command)
+    {
+        var parsed = ParseGenMoveAnalyzeArguments(command, "lz-genmove_analyze");
+        if (parsed.Error is { } error)
+        {
+            return error;
+        }
+
+        var move = GenerateMove(parsed.Color);
+        return GenMoveAnalyzeSuccess(command, FormatLzAnalysis(SearchInfoAsAnalysisMove(move)), move);
+    }
+
+    private GtpExecutionResult KataGenMoveAnalyze(GtpCommand command)
+    {
+        var parsed = ParseGenMoveAnalyzeArguments(command, "kata-genmove_analyze");
+        if (parsed.Error is { } error)
+        {
+            return error;
+        }
+
+        var move = GenerateMove(parsed.Color);
+        return GenMoveAnalyzeSuccess(command, FormatKataAnalysis(SearchInfoAsAnalysisMove(move)), move);
+    }
+
+    private GtpExecutionResult GenMoveAnalyze(GtpCommand command)
+    {
+        var parsed = ParseGenMoveAnalyzeArguments(command, "genmove_analyze");
+        if (parsed.Error is { } error)
+        {
+            return error;
+        }
+
+        var move = GenerateMove(parsed.Color);
+        return GenMoveAnalyzeSuccess(command, FormatKataAnalysis(SearchInfoAsAnalysisMove(move)), move);
     }
 
     private GtpExecutionResult KataSetParam(GtpCommand command)
@@ -703,6 +769,16 @@ public sealed class GtpSession
         if (command.Arguments.Count == 0)
         {
             return Error(command, "kata-time_settings requires arguments");
+        }
+
+        return Success(command, "");
+    }
+
+    private static GtpExecutionResult ClearCache(GtpCommand command)
+    {
+        if (command.Arguments.Count != 0)
+        {
+            return Error(command, "clear_cache does not accept arguments");
         }
 
         return Success(command, "");
@@ -788,6 +864,55 @@ public sealed class GtpSession
         }
     }
 
+    private GtpMove GenerateMove(StoneColor color)
+    {
+        GtpMove move;
+        lock (_engineLock)
+        {
+            move = _engine.GenMove(color);
+        }
+
+        _board.Play(color, move);
+        return move;
+    }
+
+    private (StoneColor Color, GtpExecutionResult? Error) ParseGenMoveAnalyzeArguments(
+        GtpCommand command,
+        string commandName)
+    {
+        var color = _board.NextColor;
+        var index = 0;
+        if (command.Arguments.Count > 0 && TryParseColor(command.Arguments[0], out var explicitColor))
+        {
+            color = explicitColor;
+            index = 1;
+        }
+
+        if (command.Arguments.Count > index &&
+            TryParseInteger(command.Arguments[index], out var interval))
+        {
+            if (interval <= 0)
+            {
+                return (color, Error(command, $"{commandName} interval must be positive"));
+            }
+        }
+
+        return (color, null);
+    }
+
+    private IReadOnlyList<GtpAnalysisMove> SearchInfoAsAnalysisMove(GtpMove move)
+    {
+        var searchInfo = _engine.LastSearchInfo;
+        return
+        [
+            new GtpAnalysisMove(
+                move,
+                searchInfo?.Playouts ?? 0,
+                searchInfo?.Winrate ?? 0.5,
+                FormatMove(move))
+        ];
+    }
+
     private static bool TryParseInteger(string value, out int result)
     {
         return int.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out result);
@@ -800,12 +925,30 @@ public sealed class GtpSession
 
     private static StoneColor ParseColor(string value)
     {
-        return value.ToLowerInvariant() switch
+        if (TryParseColor(value, out var color))
         {
-            "b" or "black" => StoneColor.Black,
-            "w" or "white" => StoneColor.White,
-            _ => throw new FormatException($"Invalid color: {value}"),
-        };
+            return color;
+        }
+
+        throw new FormatException($"Invalid color: {value}");
+    }
+
+    private static bool TryParseColor(string value, out StoneColor color)
+    {
+        switch (value.ToLowerInvariant())
+        {
+            case "b":
+            case "black":
+                color = StoneColor.Black;
+                return true;
+            case "w":
+            case "white":
+                color = StoneColor.White;
+                return true;
+            default:
+                color = default;
+                return false;
+        }
     }
 
     private static IReadOnlyList<BoardCoordinate> FixedHandicapCoordinates(int boardSize, int count)
@@ -922,18 +1065,43 @@ public sealed class GtpSession
         return string.Join('\n', lines);
     }
 
+    private string FormatLegacyTerritory(int[,] territory)
+    {
+        var lines = new List<string>(_engine.BoardSize + 1);
+        for (var y = 0; y < _engine.BoardSize; y++)
+        {
+            var row = new string[_engine.BoardSize + 1];
+            row[0] = "#";
+            for (var x = 0; x < _engine.BoardSize; x++)
+            {
+                row[x + 1] = territory[y, x].ToString(CultureInfo.InvariantCulture);
+            }
+
+            lines.Add(string.Join(' ', row));
+        }
+
+        lines.Add("territory");
+        return string.Join('\n', lines);
+    }
+
     private static string FormatFinalScoreDetail(GtpFinalScoreEstimate estimate)
     {
         return string.Create(
             CultureInfo.InvariantCulture,
+            $"rule {estimate.Rule} " +
+            $"configuredEstimate {estimate.FormatConfiguredResult()} " +
             $"areaEstimate {estimate.FormatAreaResult()} " +
             $"areaMargin {estimate.AreaMargin:0.0} " +
+            $"territoryEstimate {estimate.FormatTerritoryResult()} " +
+            $"territoryMargin {estimate.TerritoryMargin:0.0} " +
             $"captureAdjustedEstimate {estimate.FormatCaptureAdjustedResult()} " +
             $"captureAdjustedMargin {estimate.CaptureAdjustedMargin:0.0} " +
             $"threshold {estimate.Threshold} " +
             $"komi {estimate.Komi:0.0} " +
             $"blackArea {estimate.BlackArea} " +
             $"whiteArea {estimate.WhiteArea} " +
+            $"blackTerritoryScore {estimate.BlackTerritoryScore} " +
+            $"whiteTerritoryScore {estimate.WhiteTerritoryScore} " +
             $"blackAlive {estimate.BlackAlive} " +
             $"blackCapture {estimate.BlackCapture} " +
             $"blackTerritory {estimate.BlackTerritory} " +
@@ -986,6 +1154,18 @@ public sealed class GtpSession
     {
         var output = analysisOutput.Length == 0 ? "" : analysisOutput + "\n";
         return new GtpExecutionResult(GtpResponse.Success(command.Id), ShouldQuit: false, OutputBeforeResponse: output);
+    }
+
+    private GtpExecutionResult GenMoveAnalyzeSuccess(GtpCommand command, string analysisOutput, GtpMove move)
+    {
+        var body = "\n";
+        if (analysisOutput.Length > 0)
+        {
+            body += analysisOutput + "\n";
+        }
+
+        body += "play " + FormatMove(move);
+        return Success(command, body);
     }
 
     private static GtpExecutionResult Error(GtpCommand command, string body)

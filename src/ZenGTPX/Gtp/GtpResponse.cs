@@ -10,7 +10,12 @@ public sealed record GtpResponse(bool IsSuccess, string? Id, string Body)
     {
         var marker = IsSuccess ? "=" : "?";
         var prefix = Id is null ? marker : marker + Id;
-        var firstLine = string.IsNullOrEmpty(Body) ? prefix : prefix + " " + Body;
+        var firstLine = Body switch
+        {
+            "" => prefix,
+            ['\n', ..] => prefix + Body,
+            _ => prefix + " " + Body,
+        };
         return firstLine + "\n\n";
     }
 }

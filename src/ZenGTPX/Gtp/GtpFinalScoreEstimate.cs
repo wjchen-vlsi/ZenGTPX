@@ -1,4 +1,5 @@
 using System.Globalization;
+using ZenGTPX.Config;
 
 namespace ZenGTPX.Gtp;
 
@@ -12,7 +13,8 @@ public sealed record GtpFinalScoreEstimate(
     int WhiteCapture,
     int WhiteTerritory,
     int CapturedBlackPrisoners,
-    int CapturedWhitePrisoners)
+    int CapturedWhitePrisoners,
+    string Rule = "japanese")
 {
     public int BlackArea => BlackAlive + BlackCapture + BlackTerritory;
 
@@ -22,9 +24,24 @@ public sealed record GtpFinalScoreEstimate(
 
     public double CaptureAdjustedMargin => AreaMargin + CapturedWhitePrisoners - CapturedBlackPrisoners;
 
+    public int BlackTerritoryScore => BlackTerritory + (2 * BlackCapture) + CapturedBlackPrisoners;
+
+    public int WhiteTerritoryScore => WhiteTerritory + (2 * WhiteCapture) + CapturedWhitePrisoners;
+
+    public double TerritoryMargin => BlackTerritoryScore - WhiteTerritoryScore - Komi;
+
+    public string FormatConfiguredResult()
+    {
+        return ZenGtpOptions.IsTerritoryScoringRule(Rule)
+            ? FormatTerritoryResult()
+            : FormatAreaResult();
+    }
+
     public string FormatAreaResult() => FormatMargin(AreaMargin);
 
     public string FormatCaptureAdjustedResult() => FormatMargin(CaptureAdjustedMargin);
+
+    public string FormatTerritoryResult() => FormatMargin(TerritoryMargin);
 
     private static string FormatMargin(double margin)
     {

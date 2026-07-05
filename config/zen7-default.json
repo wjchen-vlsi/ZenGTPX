@@ -6,6 +6,7 @@
   "boardSize": 19,
   "komi": 7.5,
   "handicap": 0,
+  "finalScoreRule": "japanese",
   "threads": 4,
   "maxTimeSeconds": 60.0,
   "maxSimulations": 6000,

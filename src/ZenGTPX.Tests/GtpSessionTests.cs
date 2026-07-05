@@ -112,6 +112,14 @@ public sealed class GtpSessionTests
     }
 
     [TestMethod]
+    public void Execute_KnownCommand_LegacyTerritory()
+    {
+        var result = Execute("known_command territory");
+
+        Assert.AreEqual("= true\n\n", result.Response.Format());
+    }
+
+    [TestMethod]
     public void Execute_KnownCommand_FinalScoreDetail()
     {
         var result = Execute("known_command zengtp_final_score_detail");
@@ -123,6 +131,30 @@ public sealed class GtpSessionTests
     public void Execute_KnownCommand_KataAnalyze()
     {
         var result = Execute("known_command kata-analyze");
+
+        Assert.AreEqual("= true\n\n", result.Response.Format());
+    }
+
+    [TestMethod]
+    public void Execute_KnownCommand_KataGenMoveAnalyze()
+    {
+        var result = Execute("known_command kata-genmove_analyze");
+
+        Assert.AreEqual("= true\n\n", result.Response.Format());
+    }
+
+    [TestMethod]
+    public void Execute_KnownCommand_GenMoveAnalyze()
+    {
+        var result = Execute("known_command genmove_analyze");
+
+        Assert.AreEqual("= true\n\n", result.Response.Format());
+    }
+
+    [TestMethod]
+    public void Execute_KnownCommand_Analyze()
+    {
+        var result = Execute("known_command analyze");
 
         Assert.AreEqual("= true\n\n", result.Response.Format());
     }
@@ -157,14 +189,20 @@ public sealed class GtpSessionTests
                 "zengtp_final_score_detail",
                 "stop",
                 "lz-analyze",
+                "lz-genmove_analyze",
                 "kata-analyze",
+                "kata-genmove_analyze",
+                "analyze",
+                "genmove_analyze",
                 "kata-set-param",
                 "kata-get-param",
                 "kata-list-params",
                 "kata-get-rules",
                 "kata-time_settings",
+                "clear_cache",
                 "zengtp_last_search_info",
                 "zengtp_policy",
+                "territory",
                 "zengtp_territory",
                 "quit",
             },
@@ -392,6 +430,84 @@ public sealed class GtpSessionTests
     }
 
     [TestMethod]
+    public void Execute_KataGenMoveAnalyze_ReturnsPartialResponseWithPlay()
+    {
+        var engine = new FakeGtpEngine
+        {
+            NextGeneratedMove = GtpMove.Play(new BoardCoordinate(15, 3)),
+            NextSearchInfo = new GtpSearchInfo(GtpMove.Play(new BoardCoordinate(15, 3)), 6000, 0.53421, 1.23456),
+        };
+
+        var result = Execute("kata-genmove_analyze b 10", engine);
+
+        Assert.AreEqual(
+            "=\ninfo move Q16 visits 6000 winrate 0.5342 scoreLead 1.0 scoreMean 1.0 prior 0.100 order 0 pv Q16\nplay Q16\n\n",
+            result.Response.Format());
+        Assert.AreEqual(StoneColor.Black, engine.LastGenMoveColor);
+    }
+
+    [TestMethod]
+    public void Execute_GenMoveAnalyze_ReturnsKataStylePartialResponseWithPlay()
+    {
+        var engine = new FakeGtpEngine
+        {
+            NextGeneratedMove = GtpMove.Play(new BoardCoordinate(15, 3)),
+            NextSearchInfo = new GtpSearchInfo(GtpMove.Play(new BoardCoordinate(15, 3)), 6000, 0.53421, 1.23456),
+        };
+
+        var result = Execute("genmove_analyze b 10", engine);
+
+        Assert.AreEqual(
+            "=\ninfo move Q16 visits 6000 winrate 0.5342 scoreLead 1.0 scoreMean 1.0 prior 0.100 order 0 pv Q16\nplay Q16\n\n",
+            result.Response.Format());
+        Assert.AreEqual(StoneColor.Black, engine.LastGenMoveColor);
+    }
+
+    [TestMethod]
+    public void Execute_LzGenMoveAnalyze_UsesBoardNextColor()
+    {
+        var engine = new FakeGtpEngine
+        {
+            NextGeneratedMove = GtpMove.Play(new BoardCoordinate(15, 3)),
+            NextSearchInfo = new GtpSearchInfo(GtpMove.Play(new BoardCoordinate(15, 3)), 6000, 0.53421, 1.23456),
+        };
+        var session = new GtpSession(engine);
+
+        Execute("play b D16", session);
+        var result = Execute("lz-genmove_analyze 10", session);
+
+        Assert.AreEqual(
+            "=\ninfo move Q16 visits 6000 winrate 5342 pv Q16\nplay Q16\n\n",
+            result.Response.Format());
+        Assert.AreEqual(StoneColor.White, engine.LastGenMoveColor);
+    }
+
+    [TestMethod]
+    public void Execute_KataGenMoveAnalyze_UpdatesBoardState()
+    {
+        var engine = new FakeGtpEngine
+        {
+            NextGeneratedMove = GtpMove.Play(new BoardCoordinate(15, 3)),
+        };
+        var session = new GtpSession(engine);
+
+        Execute("kata-genmove_analyze b 10", session);
+        var result = Execute("play w Q16", session);
+
+        Assert.AreEqual("? point Q16 is already occupied\n\n", result.Response.Format());
+    }
+
+    [TestMethod]
+    public void Execute_KataGenMoveAnalyze_InvalidInterval_ReturnsError()
+    {
+        var engine = new FakeGtpEngine();
+        var result = Execute("kata-genmove_analyze b 0", engine);
+
+        Assert.AreEqual("? kata-genmove_analyze interval must be positive\n\n", result.Response.Format());
+        CollectionAssert.AreEqual(Array.Empty<string>(), engine.Calls);
+    }
+
+    [TestMethod]
     public void Execute_KataAnalyze_EmitsRawKataInfoBeforeSuccess()
     {
         var engine = new FakeGtpEngine
@@ -408,6 +524,48 @@ public sealed class GtpSessionTests
         Assert.AreEqual("=\n\n", result.Response.Format());
         Assert.AreEqual(
             "info move Q16 visits 1700 winrate 0.5342 scoreLead 1.0 scoreMean 1.0 prior 0.100 order 0 pv Q16 D4 info move D4 visits 850 winrate 0.4980 scoreLead -0.1 scoreMean -0.1 prior 0.080 order 1 pv D4 Q16\n",
+            result.OutputBeforeResponse);
+        Assert.AreEqual(StoneColor.Black, engine.LastAnalyzeColor);
+    }
+
+    [TestMethod]
+    public void Execute_KataAnalyze_VisitsOnlyUsesBoardNextColor()
+    {
+        var engine = new FakeGtpEngine
+        {
+            AnalysisMoves =
+            [
+                new GtpAnalysisMove(GtpMove.Play(new BoardCoordinate(15, 3)), 1700, 0.53421, "Q16 D4"),
+            ],
+        };
+        var session = new GtpSession(engine);
+
+        Execute("play b D16", session);
+        var result = Execute("kata-analyze 10", session);
+
+        Assert.AreEqual("=\n\n", result.Response.Format());
+        Assert.AreEqual(
+            "info move Q16 visits 1700 winrate 0.5342 scoreLead 1.0 scoreMean 1.0 prior 0.100 order 0 pv Q16 D4\n",
+            result.OutputBeforeResponse);
+        Assert.AreEqual(StoneColor.White, engine.LastAnalyzeColor);
+    }
+
+    [TestMethod]
+    public void Execute_Analyze_EmitsRawKataInfoBeforeSuccess()
+    {
+        var engine = new FakeGtpEngine
+        {
+            AnalysisMoves =
+            [
+                new GtpAnalysisMove(GtpMove.Play(new BoardCoordinate(15, 3)), 1700, 0.53421, "Q16 D4"),
+            ],
+        };
+
+        var result = Execute("analyze b 10", engine);
+
+        Assert.AreEqual("=\n\n", result.Response.Format());
+        Assert.AreEqual(
+            "info move Q16 visits 1700 winrate 0.5342 scoreLead 1.0 scoreMean 1.0 prior 0.100 order 0 pv Q16 D4\n",
             result.OutputBeforeResponse);
         Assert.AreEqual(StoneColor.Black, engine.LastAnalyzeColor);
     }
@@ -527,6 +685,14 @@ public sealed class GtpSessionTests
     }
 
     [TestMethod]
+    public void Execute_ClearCache_ReturnsSuccessNoOp()
+    {
+        var result = Execute("clear_cache");
+
+        Assert.AreEqual("=\n\n", result.Response.Format());
+    }
+
+    [TestMethod]
     public void Execute_Policy_ReturnsDefaultTopPolicyPoints()
     {
         var engine = new FakeGtpEngine
@@ -600,11 +766,32 @@ public sealed class GtpSessionTests
     }
 
     [TestMethod]
+    public void Execute_LegacyTerritory_ReturnsZenEstimateMatrix()
+    {
+        var engine = new FakeGtpEngine { BoardSizeOverride = 3 };
+        engine.Territory[0, 0] = 1;
+        engine.Territory[1, 1] = -2;
+        engine.Territory[2, 2] = 3;
+
+        var result = Execute("territory", engine);
+
+        Assert.AreEqual("=\n# 1 0 0\n# 0 -2 0\n# 0 0 3\nterritory\n\n", result.Response.Format());
+    }
+
+    [TestMethod]
     public void Execute_Territory_RejectsArguments()
     {
         var result = Execute("zengtp_territory 1");
 
         Assert.AreEqual("? zengtp_territory does not accept arguments\n\n", result.Response.Format());
+    }
+
+    [TestMethod]
+    public void Execute_LegacyTerritory_RejectsArguments()
+    {
+        var result = Execute("territory 1");
+
+        Assert.AreEqual("? territory does not accept arguments\n\n", result.Response.Format());
     }
 
     [TestMethod]
@@ -1028,8 +1215,28 @@ public sealed class GtpSessionTests
         var result = Execute("zengtp_final_score_detail", engine);
 
         Assert.AreEqual(
-            "= areaEstimate W+3.5 areaMargin -3.5 captureAdjustedEstimate W+2.5 captureAdjustedMargin -2.5 threshold 300 komi 6.5 blackArea 31 whiteArea 28 blackAlive 10 blackCapture 1 blackTerritory 20 whiteAlive 8 whiteCapture 2 whiteTerritory 18 capturedBlackPrisoners 3 capturedWhitePrisoners 4\n\n",
+            "= rule japanese configuredEstimate W+7.5 areaEstimate W+3.5 areaMargin -3.5 territoryEstimate W+7.5 territoryMargin -7.5 captureAdjustedEstimate W+2.5 captureAdjustedMargin -2.5 threshold 300 komi 6.5 blackArea 31 whiteArea 28 blackTerritoryScore 25 whiteTerritoryScore 26 blackAlive 10 blackCapture 1 blackTerritory 20 whiteAlive 8 whiteCapture 2 whiteTerritory 18 capturedBlackPrisoners 3 capturedWhitePrisoners 4\n\n",
             result.Response.Format());
+    }
+
+    [TestMethod]
+    public void FinalScoreEstimate_UsesConfiguredAreaRule()
+    {
+        var estimate = new GtpFinalScoreEstimate(
+            300,
+            6.5,
+            10,
+            1,
+            20,
+            8,
+            2,
+            18,
+            3,
+            4,
+            "area");
+
+        Assert.AreEqual("W+3.5", estimate.FormatConfiguredResult());
+        Assert.AreEqual("W+7.5", estimate.FormatTerritoryResult());
     }
 
     [TestMethod]
