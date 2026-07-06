@@ -194,11 +194,7 @@ public sealed class ZenEngine : IGtpEngine, IDisposable
         return move;
     }
 
-    public IReadOnlyList<GtpAnalysisMove> Analyze(
-        StoneColor color,
-        int maxCandidates,
-        CancellationToken cancellationToken,
-        double? maxTimeSeconds = null)
+    public IReadOnlyList<GtpAnalysisMove> Analyze(StoneColor color, int maxCandidates, CancellationToken cancellationToken)
     {
         if (maxCandidates <= 0)
         {
@@ -209,7 +205,7 @@ public sealed class ZenEngine : IGtpEngine, IDisposable
         var candidateCount = Math.Min(maxCandidates, 10);
         var zenColor = (int)color;
         _native.SetNextColor(zenColor);
-        var moves = ThinkUntilAnalysisMoves(zenColor, candidateCount, cancellationToken, maxTimeSeconds);
+        var moves = ThinkUntilAnalysisMoves(zenColor, candidateCount, cancellationToken);
         return WithPolicyPriors(moves.Count > 0 ? moves : ReadAnalysisMoves(candidateCount));
     }
 
@@ -428,18 +424,14 @@ public sealed class ZenEngine : IGtpEngine, IDisposable
     private IReadOnlyList<GtpAnalysisMove> ThinkUntilAnalysisMoves(
         int zenColor,
         int candidateCount,
-        CancellationToken cancellationToken,
-        double? maxTimeSeconds = null)
+        CancellationToken cancellationToken)
     {
         IReadOnlyList<GtpAnalysisMove> moves = [];
         _native.StartThinking(zenColor);
 
         try
         {
-            var effectiveMaxTime = maxTimeSeconds is { } overrideSeconds
-                ? Math.Min(_maxTime, Math.Max(0.1, overrideSeconds))
-                : _maxTime;
-            var deadline = DateTime.UtcNow.AddSeconds(Math.Max(0.1, effectiveMaxTime) + 0.5);
+            var deadline = DateTime.UtcNow.AddSeconds(Math.Max(0.1, _maxTime) + 0.5);
             while (DateTime.UtcNow < deadline)
             {
                 if (cancellationToken.WaitHandle.WaitOne(100))

@@ -32,11 +32,7 @@ public interface IGtpEngine
 
     GtpMove GenMove(StoneColor color);
 
-    IReadOnlyList<GtpAnalysisMove> Analyze(
-        StoneColor color,
-        int maxCandidates,
-        CancellationToken cancellationToken,
-        double? maxTimeSeconds = null);
+    IReadOnlyList<GtpAnalysisMove> Analyze(StoneColor color, int maxCandidates, CancellationToken cancellationToken);
 
     IReadOnlyList<GtpPolicyPoint> GetPolicy(int count);
 
