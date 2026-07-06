@@ -38,6 +38,13 @@ public interface IGtpEngine
         CancellationToken cancellationToken,
         double? maxTimeSeconds = null);
 
+    void RunAnalysis(
+        StoneColor color,
+        int maxCandidates,
+        TimeSpan interval,
+        Action<IReadOnlyList<GtpAnalysisMove>> onMoves,
+        CancellationToken cancellationToken);
+
     IReadOnlyList<GtpPolicyPoint> GetPolicy(int count);
 
     int[,] GetTerritoryStatistics();
