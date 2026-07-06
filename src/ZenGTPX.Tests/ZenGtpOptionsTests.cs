@@ -16,8 +16,6 @@ public sealed class ZenGtpOptionsTests
         Assert.AreEqual("9d", options.RankPreset);
         Assert.AreEqual("ZenGTPX", options.GtpName);
         Assert.AreEqual("japanese", options.FinalScoreRule);
-        Assert.AreEqual("enabled", options.RuntimeTimeOverride);
-        Assert.IsTrue(options.RuntimeTimeOverrideEnabled);
         Assert.AreEqual(4, options.Threads);
         Assert.AreEqual(60.0, options.MaxTimeSeconds);
         Assert.AreEqual(6000, options.MaxSimulations);
@@ -29,14 +27,12 @@ public sealed class ZenGtpOptionsTests
     [TestMethod]
     public void Load_AppliesCommandLineOverrides()
     {
-        var options = ZenGtpOptionsLoader.Load(["--boardSize", "9", "--komi", "6.5", "--threads", "2", "--maxTimeSeconds", "3.5", "--gtpName", "KataGo", "--finalScoreRule", "area", "--runtimeTimeOverride", "disabled"], Environment.CurrentDirectory);
+        var options = ZenGtpOptionsLoader.Load(["--boardSize", "9", "--komi", "6.5", "--threads", "2", "--maxTimeSeconds", "3.5", "--gtpName", "KataGo", "--finalScoreRule", "area"], Environment.CurrentDirectory);
 
         Assert.AreEqual(9, options.BoardSize);
         Assert.AreEqual(6.5, options.Komi);
         Assert.AreEqual("KataGo", options.GtpName);
         Assert.AreEqual("area", options.FinalScoreRule);
-        Assert.AreEqual("disabled", options.RuntimeTimeOverride);
-        Assert.IsFalse(options.RuntimeTimeOverrideEnabled);
         Assert.AreEqual(2, options.Threads);
         Assert.AreEqual(3.5, options.MaxTimeSeconds);
     }
@@ -54,7 +50,6 @@ public sealed class ZenGtpOptionsTests
             boardSize = 13
             komi = 6.5
             finalScoreRule = territory
-            runtimeTimeOverride = disabled
             threads = 2
             maxTimeSeconds = 3.5
             maxSimulations = 200
@@ -69,8 +64,6 @@ public sealed class ZenGtpOptionsTests
         Assert.AreEqual(13, options.BoardSize);
         Assert.AreEqual(6.5, options.Komi);
         Assert.AreEqual("territory", options.FinalScoreRule);
-        Assert.AreEqual("disabled", options.RuntimeTimeOverride);
-        Assert.IsFalse(options.RuntimeTimeOverrideEnabled);
         Assert.AreEqual(2, options.Threads);
         Assert.AreEqual(3.5, options.MaxTimeSeconds);
     }
@@ -110,7 +103,6 @@ public sealed class ZenGtpOptionsTests
             boardSize = 13
             komi = 6.5
             finalScoreRule = territory
-            runtimeTimeOverride = disabled
             threads = 2
             maxTimeSeconds = 3.5
             maxSimulations = 200
@@ -129,8 +121,6 @@ public sealed class ZenGtpOptionsTests
         Assert.AreEqual(13, options.BoardSize);
         Assert.AreEqual(6.5, options.Komi);
         Assert.AreEqual("territory", options.FinalScoreRule);
-        Assert.AreEqual("disabled", options.RuntimeTimeOverride);
-        Assert.IsFalse(options.RuntimeTimeOverrideEnabled);
         Assert.AreEqual(2, options.Threads);
         Assert.AreEqual(3.5, options.MaxTimeSeconds);
         Assert.AreEqual(200, options.MaxSimulations);
@@ -156,8 +146,6 @@ public sealed class ZenGtpOptionsTests
         Assert.AreEqual(7.5, options.Komi);
         Assert.AreEqual(0, options.Handicap);
         Assert.AreEqual("japanese", options.FinalScoreRule);
-        Assert.AreEqual("disabled", options.RuntimeTimeOverride);
-        Assert.IsFalse(options.RuntimeTimeOverrideEnabled);
         Assert.AreEqual(4, options.Threads);
         Assert.AreEqual(60.0, options.MaxTimeSeconds);
         Assert.AreEqual(6000, options.MaxSimulations);
@@ -183,8 +171,6 @@ public sealed class ZenGtpOptionsTests
         Assert.AreEqual(7.5, options.Komi);
         Assert.AreEqual(0, options.Handicap);
         Assert.AreEqual("japanese", options.FinalScoreRule);
-        Assert.AreEqual("disabled", options.RuntimeTimeOverride);
-        Assert.IsFalse(options.RuntimeTimeOverrideEnabled);
         Assert.AreEqual(4, options.Threads);
         Assert.AreEqual(60.0, options.MaxTimeSeconds);
         Assert.AreEqual(6000, options.MaxSimulations);
@@ -298,15 +284,6 @@ public sealed class ZenGtpOptionsTests
 
         var exception = Assert.ThrowsException<InvalidOperationException>(options.Validate);
         Assert.AreEqual("finalScoreRule must be one of: japanese, territory, chinese, area.", exception.Message);
-    }
-
-    [TestMethod]
-    public void Validate_RejectsInvalidRuntimeTimeOverride()
-    {
-        var options = new ZenGtpOptions { RuntimeTimeOverride = "auto" };
-
-        var exception = Assert.ThrowsException<InvalidOperationException>(options.Validate);
-        Assert.AreEqual("runtimeTimeOverride must be one of: enabled, disabled.", exception.Message);
     }
 
     [TestMethod]

@@ -1058,32 +1058,12 @@ public sealed class GtpSessionTests
     }
 
     [TestMethod]
-    public void Execute_KataSetParam_MaxTime_IgnoresRuntimeTimeWhenDisabled()
-    {
-        var engine = new FakeGtpEngine { RuntimeTimeOverrideEnabled = false };
-        var result = Execute("kata-set-param maxTime 999", engine);
-
-        Assert.AreEqual("=\n\n", result.Response.Format());
-        CollectionAssert.AreEqual(Array.Empty<string>(), engine.Calls);
-    }
-
-    [TestMethod]
     public void Execute_TimeSettings_RejectsNegativeValuesBeforeEngineCall()
     {
         var engine = new FakeGtpEngine();
         var result = Execute("time_settings 60 -1 3", engine);
 
         Assert.AreEqual("? time_settings values must not be negative\n\n", result.Response.Format());
-        CollectionAssert.AreEqual(Array.Empty<string>(), engine.Calls);
-    }
-
-    [TestMethod]
-    public void Execute_TimeSettings_IgnoresRuntimeTimeWhenDisabled()
-    {
-        var engine = new FakeGtpEngine { RuntimeTimeOverrideEnabled = false };
-        var result = Execute("time_settings 60 10 3", engine);
-
-        Assert.AreEqual("=\n\n", result.Response.Format());
         CollectionAssert.AreEqual(Array.Empty<string>(), engine.Calls);
     }
 
@@ -1108,16 +1088,6 @@ public sealed class GtpSessionTests
 
         Assert.AreEqual("=\n\n", result.Response.Format());
         CollectionAssert.Contains(engine.Calls, "SetTimeLeft:Black:10:5");
-    }
-
-    [TestMethod]
-    public void Execute_TimeLeft_IgnoresRuntimeTimeWhenDisabled()
-    {
-        var engine = new FakeGtpEngine { RuntimeTimeOverrideEnabled = false };
-        var result = Execute("time_left b 30 10", engine);
-
-        Assert.AreEqual("=\n\n", result.Response.Format());
-        CollectionAssert.AreEqual(Array.Empty<string>(), engine.Calls);
     }
 
     [TestMethod]
@@ -1343,8 +1313,6 @@ public sealed class GtpSessionTests
         public string GtpName { get; init; } = "ZenGTPX";
 
         public GtpSearchInfo? LastSearchInfo { get; private set; }
-
-        public bool RuntimeTimeOverrideEnabled { get; init; } = true;
 
         public double Komi { get; private set; }
 

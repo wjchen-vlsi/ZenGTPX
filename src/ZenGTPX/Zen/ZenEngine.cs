@@ -65,8 +65,6 @@ public sealed class ZenEngine : IGtpEngine, IDisposable
 
     public GtpSearchInfo? LastSearchInfo { get; private set; }
 
-    public bool RuntimeTimeOverrideEnabled => _options.RuntimeTimeOverrideEnabled;
-
     public void SetBoardSize(int boardSize)
     {
         if (boardSize <= 0 || boardSize > 25)
