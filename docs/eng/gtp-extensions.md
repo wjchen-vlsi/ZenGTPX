@@ -68,6 +68,14 @@ Compatibility behavior:
 
 This is intentionally stricter than treating every KataGo-compatible command independently, because LizzieYzy Next may send `kata-time_settings none` and then still send its generic `kata-set-param maxTime` value.
 
+ZenGTPX also accepts `kata-get-rules` and `kata-set-rules` for GUI compatibility. The full KataGo rules object is reduced to the scoring model supported by ZenGTPX:
+
+- `AREA` / `CHINESE` maps to `finalScoreRule = area`.
+- `TERRITORY` / `JAPANESE` maps to `finalScoreRule = japanese`.
+- `KOREAN` maps to `finalScoreRule = japanese`.
+
+`kata-get-rules` reports the current mapped rule back as `AREA` or `TERRITORY`. This affects ZenGTPX final-score rule selection; it does not implement a full KataGo rules engine.
+
 ## `zengtp_last_search_info`
 
 Returns the search summary recorded by the most recent successful `genmove`.

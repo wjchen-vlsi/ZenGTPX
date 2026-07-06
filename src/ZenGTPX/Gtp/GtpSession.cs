@@ -1,5 +1,7 @@
 using System.Globalization;
+using System.Text.Json;
 using ZenGTPX.Board;
+using ZenGTPX.Config;
 
 namespace ZenGTPX.Gtp;
 
@@ -41,6 +43,7 @@ public sealed class GtpSession
         "kata-get-param",
         "kata-list-params",
         "kata-get-rules",
+        "kata-set-rules",
         "kata-time_settings",
         "clear_cache",
         "zengtp_last_search_info",
@@ -113,6 +116,7 @@ public sealed class GtpSession
                 "kata-get-param" => KataGetParam(command),
                 "kata-list-params" => KataListParams(command),
                 "kata-get-rules" => KataGetRules(command),
+                "kata-set-rules" => KataSetRules(command),
                 "kata-time_settings" => KataTimeSettings(command),
                 "clear_cache" => ClearCache(command),
                 "zengtp_last_search_info" => LastSearchInfo(command),
@@ -764,16 +768,35 @@ public sealed class GtpSession
         return Success(command, string.Join('\n', _kataParameters.Keys.Order(StringComparer.Ordinal)));
     }
 
-    private static GtpExecutionResult KataGetRules(GtpCommand command)
+    private GtpExecutionResult KataGetRules(GtpCommand command)
     {
         if (command.Arguments.Count != 0)
         {
             return Error(command, "kata-get-rules does not accept arguments");
         }
 
-        return Success(
-            command,
-            "{\"ko\":\"SIMPLE\",\"scoring\":\"AREA\",\"tax\":\"NONE\",\"multiStoneSuicideLegal\":false,\"hasButton\":false,\"whiteHandicapBonus\":\"N\",\"friendlyPassOk\":false}");
+        return Success(command, FormatKataRules(_engine.FinalScoreRule));
+    }
+
+    private GtpExecutionResult KataSetRules(GtpCommand command)
+    {
+        if (command.Arguments.Count == 0)
+        {
+            return Error(command, "kata-set-rules requires rules JSON");
+        }
+
+        var json = string.Join(' ', command.Arguments);
+        if (!TryMapKataRules(json, out var rule, out var error))
+        {
+            return Error(command, error);
+        }
+
+        lock (_engineLock)
+        {
+            _engine.SetFinalScoreRule(rule);
+        }
+
+        return Success(command, "");
     }
 
     private GtpExecutionResult KataTimeSettings(GtpCommand command)
@@ -1128,6 +1151,106 @@ public sealed class GtpSession
             $"whiteTerritory {estimate.WhiteTerritory} " +
             $"capturedBlackPrisoners {estimate.CapturedBlackPrisoners} " +
             $"capturedWhitePrisoners {estimate.CapturedWhitePrisoners}");
+    }
+
+    private static string FormatKataRules(string rule)
+    {
+        var scoring = ZenGtpOptions.IsTerritoryScoringRule(rule) ? "TERRITORY" : "AREA";
+        var tax = scoring == "TERRITORY" ? "SEKI" : "NONE";
+        var whiteHandicapBonus = scoring == "TERRITORY" ? "0" : "N";
+        return string.Create(
+            CultureInfo.InvariantCulture,
+            $"{{\"ko\":\"SIMPLE\",\"scoring\":\"{scoring}\",\"tax\":\"{tax}\",\"multiStoneSuicideLegal\":false,\"hasButton\":false,\"whiteHandicapBonus\":\"{whiteHandicapBonus}\",\"friendlyPassOk\":false}}");
+    }
+
+    private static bool TryMapKataRules(string json, out string rule, out string error)
+    {
+        rule = "japanese";
+        error = "";
+
+        try
+        {
+            using var document = JsonDocument.Parse(json);
+            var root = document.RootElement;
+
+            if (ContainsStringValue(root, "korean"))
+            {
+                rule = "japanese";
+                return true;
+            }
+
+            if (!TryGetStringProperty(root, "scoring", out var scoring))
+            {
+                error = "kata-set-rules requires scoring";
+                return false;
+            }
+
+            rule = scoring.ToUpperInvariant() switch
+            {
+                "AREA" or "CHINESE" => "area",
+                "TERRITORY" or "JAPANESE" or "KOREAN" => "japanese",
+                _ => "",
+            };
+
+            if (rule.Length == 0)
+            {
+                error = "kata-set-rules unsupported scoring";
+                return false;
+            }
+
+            return true;
+        }
+        catch (JsonException)
+        {
+            error = "kata-set-rules requires valid JSON";
+            return false;
+        }
+    }
+
+    private static bool TryGetStringProperty(JsonElement element, string name, out string value)
+    {
+        value = "";
+        if (element.ValueKind != JsonValueKind.Object ||
+            !element.TryGetProperty(name, out var property) ||
+            property.ValueKind != JsonValueKind.String)
+        {
+            return false;
+        }
+
+        value = property.GetString() ?? "";
+        return true;
+    }
+
+    private static bool ContainsStringValue(JsonElement element, string value)
+    {
+        switch (element.ValueKind)
+        {
+            case JsonValueKind.String:
+                return element.GetString()?.Equals(value, StringComparison.OrdinalIgnoreCase) == true;
+            case JsonValueKind.Object:
+                foreach (var property in element.EnumerateObject())
+                {
+                    if (property.Name.Equals(value, StringComparison.OrdinalIgnoreCase) ||
+                        ContainsStringValue(property.Value, value))
+                    {
+                        return true;
+                    }
+                }
+
+                return false;
+            case JsonValueKind.Array:
+                foreach (var item in element.EnumerateArray())
+                {
+                    if (ContainsStringValue(item, value))
+                    {
+                        return true;
+                    }
+                }
+
+                return false;
+            default:
+                return false;
+        }
     }
 
     private string FormatPrincipalVariation(GtpAnalysisMove move)

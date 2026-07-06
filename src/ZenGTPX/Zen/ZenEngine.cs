@@ -13,6 +13,7 @@ public sealed class ZenEngine : IGtpEngine, IDisposable
     private int _boardSize;
     private double _komi;
     private double _maxTime;
+    private string _finalScoreRule;
 
     private ZenEngine(ZenNative native, ZenGtpOptions options)
     {
@@ -21,6 +22,7 @@ public sealed class ZenEngine : IGtpEngine, IDisposable
         _boardSize = options.BoardSize;
         _komi = options.Komi;
         _maxTime = options.MaxTimeSeconds;
+        _finalScoreRule = options.FinalScoreRule;
     }
 
     public static ZenEngine CreateInitialized(ZenGtpOptions options, string baseDirectory)
@@ -60,6 +62,8 @@ public sealed class ZenEngine : IGtpEngine, IDisposable
     public int BoardSize => _boardSize;
 
     public string GtpName => _options.GtpName;
+
+    public string FinalScoreRule => _finalScoreRule;
 
     public GtpSearchInfo? LastSearchInfo { get; private set; }
 
@@ -132,6 +136,16 @@ public sealed class ZenEngine : IGtpEngine, IDisposable
         }
 
         _native.TimeLeft((int)color, ToNativeSeconds(time), stones);
+    }
+
+    public void SetFinalScoreRule(string rule)
+    {
+        if (!ZenGtpOptions.IsSupportedFinalScoreRule(rule))
+        {
+            throw new ArgumentException("Unsupported final score rule.", nameof(rule));
+        }
+
+        _finalScoreRule = rule;
     }
 
     public bool Play(StoneColor color, GtpMove move)
@@ -351,7 +365,7 @@ public sealed class ZenEngine : IGtpEngine, IDisposable
             score.WhiteTerritory,
             _native.GetNumBlackPrisoners(),
             _native.GetNumWhitePrisoners(),
-            _options.FinalScoreRule);
+            _finalScoreRule);
     }
 
     private TerritoryScore CalculateTerritoryStats(int threshold, int[,] territory)

@@ -198,6 +198,7 @@ public sealed class GtpSessionTests
                 "kata-get-param",
                 "kata-list-params",
                 "kata-get-rules",
+                "kata-set-rules",
                 "kata-time_settings",
                 "clear_cache",
                 "zengtp_last_search_info",
@@ -1121,6 +1122,59 @@ public sealed class GtpSessionTests
     }
 
     [TestMethod]
+    public void Execute_KataSetRules_AreaMapsToChineseAreaRule()
+    {
+        var engine = new FakeGtpEngine();
+        var session = new GtpSession(engine);
+
+        var result = Execute("""kata-set-rules {"scoring":"AREA"}""", session);
+        var rules = Execute("kata-get-rules", session);
+
+        Assert.AreEqual("=\n\n", result.Response.Format());
+        Assert.AreEqual("area", engine.FinalScoreRule);
+        Assert.AreEqual("= {\"ko\":\"SIMPLE\",\"scoring\":\"AREA\",\"tax\":\"NONE\",\"multiStoneSuicideLegal\":false,\"hasButton\":false,\"whiteHandicapBonus\":\"N\",\"friendlyPassOk\":false}\n\n", rules.Response.Format());
+        CollectionAssert.AreEqual(new[] { "SetFinalScoreRule:area" }, engine.Calls);
+    }
+
+    [TestMethod]
+    public void Execute_KataSetRules_TerritoryMapsToJapaneseRule()
+    {
+        var engine = new FakeGtpEngine { FinalScoreRule = "area" };
+        var session = new GtpSession(engine);
+
+        var result = Execute("""kata-set-rules {"scoring":"TERRITORY"}""", session);
+        var rules = Execute("kata-get-rules", session);
+
+        Assert.AreEqual("=\n\n", result.Response.Format());
+        Assert.AreEqual("japanese", engine.FinalScoreRule);
+        Assert.AreEqual("= {\"ko\":\"SIMPLE\",\"scoring\":\"TERRITORY\",\"tax\":\"SEKI\",\"multiStoneSuicideLegal\":false,\"hasButton\":false,\"whiteHandicapBonus\":\"0\",\"friendlyPassOk\":false}\n\n", rules.Response.Format());
+        CollectionAssert.AreEqual(new[] { "SetFinalScoreRule:japanese" }, engine.Calls);
+    }
+
+    [TestMethod]
+    public void Execute_KataSetRules_KoreanMapsToJapaneseRule()
+    {
+        var engine = new FakeGtpEngine { FinalScoreRule = "area" };
+        var session = new GtpSession(engine);
+
+        var result = Execute("""kata-set-rules {"rules":"KOREAN","scoring":"AREA"}""", session);
+
+        Assert.AreEqual("=\n\n", result.Response.Format());
+        Assert.AreEqual("japanese", engine.FinalScoreRule);
+        CollectionAssert.AreEqual(new[] { "SetFinalScoreRule:japanese" }, engine.Calls);
+    }
+
+    [TestMethod]
+    public void Execute_KataSetRules_InvalidJsonReturnsError()
+    {
+        var engine = new FakeGtpEngine();
+        var result = Execute("kata-set-rules not-json", engine);
+
+        Assert.AreEqual("? kata-set-rules requires valid JSON\n\n", result.Response.Format());
+        CollectionAssert.AreEqual(Array.Empty<string>(), engine.Calls);
+    }
+
+    [TestMethod]
     public void Execute_TimeLeft_ForwardsToEngine()
     {
         var engine = new FakeGtpEngine();
@@ -1352,6 +1406,8 @@ public sealed class GtpSessionTests
 
         public string GtpName { get; init; } = "ZenGTPX";
 
+        public string FinalScoreRule { get; set; } = "japanese";
+
         public GtpSearchInfo? LastSearchInfo { get; private set; }
 
         public double Komi { get; private set; }
@@ -1462,6 +1518,12 @@ public sealed class GtpSessionTests
         public void SetTimeLeft(StoneColor color, double time, int stones)
         {
             AddCall($"SetTimeLeft:{color}:{time}:{stones}");
+        }
+
+        public void SetFinalScoreRule(string rule)
+        {
+            FinalScoreRule = rule;
+            AddCall($"SetFinalScoreRule:{rule}");
         }
 
         public bool Play(StoneColor color, GtpMove move)

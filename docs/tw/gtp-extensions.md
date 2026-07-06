@@ -68,6 +68,14 @@ ZenGTPX 為 GUI 相容性接受 `kata-time_settings` 與 `kata-set-param maxTime
 
 此語意刻意比「每個 KataGo-compatible command 完全獨立處理」更嚴格，因為 LizzieYzy Next 可能先送 `kata-time_settings none`，接著仍送 generic `kata-set-param maxTime` 值。
 
+ZenGTPX 也為 GUI 相容性接受 `kata-get-rules` 與 `kata-set-rules`。完整 KataGo rules object 會收斂成 ZenGTPX 支援的計分規則：
+
+- `AREA` / `CHINESE` 映射為 `finalScoreRule = area`。
+- `TERRITORY` / `JAPANESE` 映射為 `finalScoreRule = japanese`。
+- `KOREAN` 映射為 `finalScoreRule = japanese`。
+
+`kata-get-rules` 會依目前映射後的規則回報 `AREA` 或 `TERRITORY`。此功能只影響 ZenGTPX final-score rule selection；不是完整 KataGo rules engine。
+
 ## `zengtp_last_search_info`
 
 回傳最近一次成功 `genmove` 記錄的搜尋摘要。

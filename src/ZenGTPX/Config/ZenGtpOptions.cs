@@ -101,7 +101,7 @@ public sealed record ZenGtpOptions
             || rule.Equals("territory", StringComparison.OrdinalIgnoreCase);
     }
 
-    private static bool IsSupportedFinalScoreRule(string rule)
+    public static bool IsSupportedFinalScoreRule(string rule)
     {
         return IsTerritoryScoringRule(rule)
             || rule.Equals("chinese", StringComparison.OrdinalIgnoreCase)

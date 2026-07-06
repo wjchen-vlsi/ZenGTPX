@@ -8,6 +8,8 @@ public interface IGtpEngine
 
     string GtpName { get; }
 
+    string FinalScoreRule { get; }
+
     GtpSearchInfo? LastSearchInfo { get; }
 
     void SetBoardSize(int boardSize);
@@ -23,6 +25,8 @@ public interface IGtpEngine
     void SetTimeSettings(double mainTime, double byoyomiTime, int periods);
 
     void SetTimeLeft(StoneColor color, double time, int stones);
+
+    void SetFinalScoreRule(string rule);
 
     bool Play(StoneColor color, GtpMove move);
 
