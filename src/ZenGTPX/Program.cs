@@ -18,6 +18,7 @@ while (Console.In.ReadLine() is { } line)
     var command = GtpCommandParser.Parse(line);
     if (command is null)
     {
+        session.InterruptAnalysis();
         continue;
     }
 

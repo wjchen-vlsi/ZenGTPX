@@ -78,6 +78,7 @@ public sealed class GtpSession
     {
         try
         {
+            StopAnalysis();
             return command.Name switch
             {
                 "protocol_version" => Success(command, "2"),
@@ -125,6 +126,11 @@ public sealed class GtpSession
         {
             return Error(command, ex.Message);
         }
+    }
+
+    public void InterruptAnalysis()
+    {
+        StopAnalysis();
     }
 
     private static GtpExecutionResult KnownCommand(GtpCommand command)

@@ -655,6 +655,35 @@ public sealed class GtpSessionTests
         CollectionAssert.AreEqual(new[] { "RunAnalysis:Black:10:100", "Play:Black:D16" }, engine.Calls);
     }
 
+    [TestMethod]
+    public void Execute_AnyCommand_CancelsBackgroundAnalysis()
+    {
+        var engine = new FakeGtpEngine { BlockAnalyzeUntilCanceled = true };
+        var session = new GtpSession(engine, _ => { });
+
+        Execute("kata-analyze b 10", session);
+        Assert.IsTrue(engine.WaitForAnalyzeStarted());
+
+        var result = Execute("name", session);
+
+        Assert.AreEqual("= ZenGTPX\n\n", result.Response.Format());
+        Assert.IsTrue(engine.LastAnalyzeCancellationRequested);
+    }
+
+    [TestMethod]
+    public void InterruptAnalysis_CancelsBackgroundAnalysis()
+    {
+        var engine = new FakeGtpEngine { BlockAnalyzeUntilCanceled = true };
+        var session = new GtpSession(engine, _ => { });
+
+        Execute("kata-analyze b 10", session);
+        Assert.IsTrue(engine.WaitForAnalyzeStarted());
+
+        session.InterruptAnalysis();
+
+        Assert.IsTrue(engine.LastAnalyzeCancellationRequested);
+    }
+
     [DataTestMethod]
     [DataRow("clear_board", "ClearBoard")]
     [DataRow("undo", "Undo:1")]
