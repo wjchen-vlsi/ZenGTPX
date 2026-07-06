@@ -15,6 +15,7 @@ public sealed class ZenGtpOptionsTests
         Assert.AreEqual("rank", options.Mode);
         Assert.AreEqual("9d", options.RankPreset);
         Assert.AreEqual("ZenGTPX", options.GtpName);
+        Assert.AreEqual("", options.TracePath);
         Assert.AreEqual("japanese", options.FinalScoreRule);
         Assert.AreEqual(4, options.Threads);
         Assert.AreEqual(60.0, options.MaxTimeSeconds);
@@ -27,11 +28,12 @@ public sealed class ZenGtpOptionsTests
     [TestMethod]
     public void Load_AppliesCommandLineOverrides()
     {
-        var options = ZenGtpOptionsLoader.Load(["--boardSize", "9", "--komi", "6.5", "--threads", "2", "--maxTimeSeconds", "3.5", "--gtpName", "KataGo", "--finalScoreRule", "area"], Environment.CurrentDirectory);
+        var options = ZenGtpOptionsLoader.Load(["--boardSize", "9", "--komi", "6.5", "--threads", "2", "--maxTimeSeconds", "3.5", "--gtpName", "KataGo", "--tracePath", "gtp_logs/test.log", "--finalScoreRule", "area"], Environment.CurrentDirectory);
 
         Assert.AreEqual(9, options.BoardSize);
         Assert.AreEqual(6.5, options.Komi);
         Assert.AreEqual("KataGo", options.GtpName);
+        Assert.AreEqual("gtp_logs/test.log", options.TracePath);
         Assert.AreEqual("area", options.FinalScoreRule);
         Assert.AreEqual(2, options.Threads);
         Assert.AreEqual(3.5, options.MaxTimeSeconds);
@@ -100,6 +102,7 @@ public sealed class ZenGtpOptionsTests
             # comment
             zenDll = Zen.dll
             gtpName = KataGo
+            tracePath = gtp_logs/test-{timestamp}.log
             boardSize = 13
             komi = 6.5
             finalScoreRule = territory
@@ -117,6 +120,7 @@ public sealed class ZenGtpOptionsTests
 
         Assert.AreEqual("Zen.dll", options.ZenDll);
         Assert.AreEqual("KataGo", options.GtpName);
+        Assert.AreEqual("gtp_logs/test-{timestamp}.log", options.TracePath);
         Assert.AreEqual("advanced", options.Mode);
         Assert.AreEqual(13, options.BoardSize);
         Assert.AreEqual(6.5, options.Komi);
@@ -140,6 +144,7 @@ public sealed class ZenGtpOptionsTests
 
         Assert.AreEqual("Zen.dll", options.ZenDll);
         Assert.AreEqual("KataGo", options.GtpName);
+        Assert.AreEqual("gtp_logs/zengtpx-trace-{timestamp}-{pid}.log", options.TracePath);
         Assert.AreEqual("rank", options.Mode);
         Assert.AreEqual("9d", options.RankPreset);
         Assert.AreEqual(19, options.BoardSize);
@@ -165,6 +170,7 @@ public sealed class ZenGtpOptionsTests
 
         Assert.AreEqual("Zen.dll", options.ZenDll);
         Assert.AreEqual("KataGo", options.GtpName);
+        Assert.AreEqual("gtp_logs/zengtpx-trace-{timestamp}-{pid}.log", options.TracePath);
         Assert.AreEqual("rank", options.Mode);
         Assert.AreEqual("9d", options.RankPreset);
         Assert.AreEqual(19, options.BoardSize);

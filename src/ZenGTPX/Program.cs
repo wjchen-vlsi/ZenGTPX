@@ -1,15 +1,17 @@
+using System.Globalization;
 using ZenGTPX.Gtp;
 using ZenGTPX.Config;
 using ZenGTPX.Zen;
 
-using var engine = InitializeZen(args);
-if (engine is null)
+var startup = InitializeZen(args);
+if (startup is null)
 {
     return 1;
 }
 
+using var engine = startup.Value.Engine;
 var outputLock = new object();
-using var trace = CreateTraceWriter();
+using var trace = CreateTraceWriter(startup.Value.Options, AppContext.BaseDirectory);
 var session = new GtpSession(engine, WriteAnalysisOutput);
 
 while (Console.In.ReadLine() is { } line)
@@ -48,14 +50,14 @@ while (Console.In.ReadLine() is { } line)
 
 return 0;
 
-static ZenEngine? InitializeZen(string[] args)
+static (ZenEngine Engine, ZenGtpOptions Options)? InitializeZen(string[] args)
 {
     var baseDirectory = AppContext.BaseDirectory;
 
     try
     {
         var options = ZenGtpOptionsLoader.Load(args, Environment.CurrentDirectory, baseDirectory);
-        return ZenEngine.CreateInitialized(options, baseDirectory);
+        return (ZenEngine.CreateInitialized(options, baseDirectory), options);
     }
     catch (Exception ex)
     {
@@ -74,9 +76,14 @@ void WriteAnalysisOutput(string output)
     }
 }
 
-static StreamWriter? CreateTraceWriter()
+static StreamWriter? CreateTraceWriter(ZenGtpOptions options, string baseDirectory)
 {
     var path = Environment.GetEnvironmentVariable("ZENGTPX_TRACE_PATH");
+    if (string.IsNullOrWhiteSpace(path))
+    {
+        path = options.TracePath;
+    }
+
     if (string.IsNullOrWhiteSpace(path))
     {
         return null;
@@ -84,7 +91,8 @@ static StreamWriter? CreateTraceWriter()
 
     try
     {
-        var directory = Path.GetDirectoryName(Path.GetFullPath(path));
+        path = ExpandTracePath(path, baseDirectory);
+        var directory = Path.GetDirectoryName(path);
         if (!string.IsNullOrEmpty(directory))
         {
             Directory.CreateDirectory(directory);
@@ -100,6 +108,19 @@ static StreamWriter? CreateTraceWriter()
         Console.Error.WriteLine($"ZenGTPX trace disabled: {ex.Message}");
         return null;
     }
+}
+
+static string ExpandTracePath(string path, string baseDirectory)
+{
+    var now = DateTimeOffset.Now;
+    var expanded = path
+        .Replace("{timestamp}", now.ToString("yyyyMMdd-HHmmss"), StringComparison.OrdinalIgnoreCase)
+        .Replace("{date}", now.ToString("yyyyMMdd"), StringComparison.OrdinalIgnoreCase)
+        .Replace("{pid}", Environment.ProcessId.ToString(CultureInfo.InvariantCulture), StringComparison.OrdinalIgnoreCase);
+
+    return Path.IsPathRooted(expanded)
+        ? Path.GetFullPath(expanded)
+        : Path.GetFullPath(Path.Combine(baseDirectory, expanded));
 }
 
 void Trace(string message)

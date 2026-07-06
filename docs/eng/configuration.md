@@ -74,6 +74,7 @@ Use `mode = advanced` only when you want to tune low-level parameters directly.
 ```cfg
 zenDll = Zen.dll
 gtpName = KataGo
+tracePath = gtp_logs/zengtpx-trace-{timestamp}-{pid}.log
 boardSize = 19
 komi = 7.5
 handicap = 0
@@ -86,6 +87,7 @@ Recommended ranges:
 | Key | Range | Recommended |
 | --- | --- | --- |
 | `gtpName` | non-empty string | `KataGo` for LizzieYzy Next multi-candidate display; `ZenGTPX` for generic GTP scripts |
+| `tracePath` | path or empty | Keep the development default to capture GUI GTP traces; set empty to disable |
 | `boardSize` | `1` to `25` | `19` |
 | `komi` | any number | `6.5` or `7.5` |
 | `handicap` | `0` or greater | `0` |
@@ -109,6 +111,7 @@ These are used directly only with `mode = advanced`; `mode = rank` and `mode = f
 
 - `gtpName` controls the GTP `name` response only. The default deployment config uses `KataGo` because LizzieYzy Next enables multi-candidate analysis display on its KataGo-compatible path.
 - `gtpName = KataGo` does not mean ZenGTPX supports KataGo `analysis` JSON protocol.
+- `tracePath` writes a raw GTP trace without touching stdout. Relative paths are resolved from the executable directory. Supported tokens: `{timestamp}`, `{date}`, `{pid}`. `ZENGTPX_TRACE_PATH` still overrides this setting when present.
 - `time_settings` / `time_left` are forwarded to Zen native time API where supported; `time_settings` also updates the wrapper's per-move deadline.
 - `final_score` uses ZenGTP.py-compatible scoring over Zen territory statistics. `finalScoreRule = japanese` / `territory` uses territory scoring; `chinese` / `area` uses area scoring.
 - `final_status_list alive|dead|seki` is a compatibility stub that returns an empty list; ZenGTPX does not currently provide reliable dead-stone adjudication.
