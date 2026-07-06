@@ -213,61 +213,6 @@ public sealed class ZenEngine : IGtpEngine, IDisposable
         return WithPolicyPriors(moves.Count > 0 ? moves : ReadAnalysisMoves(candidateCount));
     }
 
-    public void RunAnalysis(
-        StoneColor color,
-        int maxCandidates,
-        TimeSpan interval,
-        Action<IReadOnlyList<GtpAnalysisMove>> onMoves,
-        CancellationToken cancellationToken)
-    {
-        if (maxCandidates <= 0)
-        {
-            throw new ArgumentOutOfRangeException(nameof(maxCandidates), "Analysis candidate count must be positive.");
-        }
-
-        if (interval <= TimeSpan.Zero)
-        {
-            throw new ArgumentOutOfRangeException(nameof(interval), "Analysis interval must be positive.");
-        }
-
-        cancellationToken.ThrowIfCancellationRequested();
-        var candidateCount = Math.Min(maxCandidates, 10);
-        var zenColor = (int)color;
-        _native.SetNextColor(zenColor);
-        _native.StartThinking(zenColor);
-
-        try
-        {
-            while (!cancellationToken.IsCancellationRequested)
-            {
-                if (cancellationToken.WaitHandle.WaitOne(interval))
-                {
-                    break;
-                }
-
-                var moves = WithPolicyPriors(ReadAnalysisMoves(candidateCount));
-                if (moves.Count > 0)
-                {
-                    onMoves(moves);
-                }
-
-                if (moves.Count > 0 && moves[0].Playouts >= _options.MaxSimulations)
-                {
-                    break;
-                }
-
-                if (!_native.IsThinking)
-                {
-                    break;
-                }
-            }
-        }
-        finally
-        {
-            _native.StopThinking();
-        }
-    }
-
     public bool Undo(int count)
     {
         if (count <= 0)

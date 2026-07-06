@@ -7,16 +7,15 @@ These commands are not part of GTP v2 and should not be treated as Lizzie or Kat
 
 ZenGTPX supports first-pass GTP analysis commands for GUI candidate display:
 
-- `lz-analyze [interval]`
-- `kata-analyze [color] [interval]`
-- `analyze [color] [interval]`
+- `lz-analyze [visits]`
+- `kata-analyze <color> [visits]`
+- `analyze <color> [visits]`
 - `lz-genmove_analyze [color] [interval]`
 - `kata-genmove_analyze [color] [interval]`
 - `genmove_analyze [color] [interval]`
 - `stop`
 
 With the normal executable entrypoint, analysis commands acknowledge the GTP command with `=`, then continue emitting background `info move ...` analysis lines until `stop` or a board-changing command is received.
-The optional `interval` argument follows KataGo/Leela-style centiseconds. For example, `kata-analyze B 10` asks ZenGTPX to sample and emit analysis roughly every 100 ms while the underlying Zen search continues.
 Candidate coordinates, playouts, winrate, and PV text are read from `ZenGetTopMoveInfo(index)`.
 `prior` is derived from `ZenGetPolicyKnowledge` by normalizing positive policy values across the returned candidate set.
 `analyze` is accepted as a KataGo-style alias for GUI compatibility.
@@ -39,7 +38,6 @@ Current limitations:
 
 - `stop` requests cancellation of the background stream and interrupts the active Zen analysis loop. Native cleanup still depends on `ZenStopThinking` returning.
 - Candidate coordinates, playouts, winrate, and PV text come from `ZenGetTopMoveInfo(index)`.
-- Analysis output is sampled from a continuous Zen thinking session. Exact output cadence may be slower than the requested interval if Zen native calls or GUI I/O take longer.
 - `prior` is Zen policy knowledge-derived and normalized across returned candidate moves. It should not be treated as a KataGo-equivalent neural policy prior.
 - `scoreLead` and `scoreMean` are compatibility placeholders derived from winrate because Zen7 does not currently expose reliable equivalent values through the wrapped API.
 - For LizzieYzy Next multi-candidate display, use `gtpName = KataGo` in `zen7.cfg`; this only changes the GTP `name` response.
@@ -53,7 +51,7 @@ play <vertex>
 ```
 
 The chosen move is applied to the internal board state, matching `genmove` behavior.
-The optional `interval` argument is accepted for GUI compatibility, but ZenGTPX currently emits a single final analysis snapshot during `genmove_analyze` rather than a long-running stream throughout the move search.
+The optional `interval` argument is accepted for GUI compatibility, but ZenGTPX currently emits a single final analysis snapshot rather than a long-running stream.
 `genmove_analyze` is accepted as a KataGo-style alias for GUIs that do not use the `kata-` prefix.
 
 ## `zengtp_last_search_info`

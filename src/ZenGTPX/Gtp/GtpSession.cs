@@ -6,7 +6,8 @@ namespace ZenGTPX.Gtp;
 public sealed class GtpSession
 {
     private const int AnalysisCandidateCount = 10;
-    private const int DefaultAnalysisIntervalCentiseconds = 100;
+    private const int AnalysisIntervalMilliseconds = 1000;
+    private const double AnalysisStreamThinkSeconds = 2.0;
 
     private static readonly string[] Commands =
     [
@@ -609,17 +610,16 @@ public sealed class GtpSession
             return Error(command, "lz-analyze accepts at most one visits argument");
         }
 
-        var interval = DefaultAnalysisIntervalCentiseconds;
         if (command.Arguments.Count == 1)
         {
-            if (!TryParseInteger(command.Arguments[0], out interval))
+            if (!TryParseInteger(command.Arguments[0], out var visits))
             {
-                return Error(command, "lz-analyze interval must be an integer");
+                return Error(command, "lz-analyze visits must be an integer");
             }
 
-            if (interval <= 0)
+            if (visits <= 0)
             {
-                return Error(command, "lz-analyze interval must be positive");
+                return Error(command, "lz-analyze visits must be positive");
             }
         }
 
@@ -635,7 +635,7 @@ public sealed class GtpSession
             return AnalysisSuccess(command, FormatLzAnalysis(moves));
         }
 
-        StartAnalysisStream(color, FormatLzAnalysis, interval);
+        StartAnalysisStream(color, FormatLzAnalysis);
         return Success(command, "");
     }
 
@@ -647,24 +647,23 @@ public sealed class GtpSession
         }
 
         var color = _board.NextColor;
-        var intervalIndex = 0;
+        var visitsIndex = 0;
         if (command.Arguments.Count > 0 && TryParseColor(command.Arguments[0], out var explicitColor))
         {
             color = explicitColor;
-            intervalIndex = 1;
+            visitsIndex = 1;
         }
 
-        var interval = DefaultAnalysisIntervalCentiseconds;
-        if (command.Arguments.Count > intervalIndex)
+        if (command.Arguments.Count > visitsIndex)
         {
-            if (!TryParseInteger(command.Arguments[intervalIndex], out interval))
+            if (!TryParseInteger(command.Arguments[visitsIndex], out var visits))
             {
-                return Error(command, "kata-analyze interval must be an integer");
+                return Error(command, "kata-analyze visits must be an integer");
             }
 
-            if (interval <= 0)
+            if (visits <= 0)
             {
-                return Error(command, "kata-analyze interval must be positive");
+                return Error(command, "kata-analyze visits must be positive");
             }
         }
 
@@ -679,7 +678,7 @@ public sealed class GtpSession
             return AnalysisSuccess(command, FormatKataAnalysis(moves));
         }
 
-        StartAnalysisStream(color, FormatKataAnalysis, interval);
+        StartAnalysisStream(color, FormatKataAnalysis);
         return Success(command, "");
     }
 
@@ -818,10 +817,7 @@ public sealed class GtpSession
         return new GtpExecutionResult(GtpResponse.Success(command.Id), ShouldQuit: true);
     }
 
-    private void StartAnalysisStream(
-        StoneColor color,
-        Func<IReadOnlyList<GtpAnalysisMove>, string> format,
-        int intervalCentiseconds)
+    private void StartAnalysisStream(StoneColor color, Func<IReadOnlyList<GtpAnalysisMove>, string> format)
     {
         StopAnalysis();
         if (_writeAnalysisOutput is null)
@@ -831,11 +827,7 @@ public sealed class GtpSession
 
         var cancellation = new CancellationTokenSource();
         _analysisCancellation = cancellation;
-        _analysisThread = new Thread(() => RunAnalysisStream(
-            color,
-            format,
-            TimeSpan.FromMilliseconds(intervalCentiseconds * 10),
-            cancellation.Token))
+        _analysisThread = new Thread(() => RunAnalysisStream(color, format, cancellation.Token))
         {
             IsBackground = true,
             Name = "ZenGTPX analysis stream",
@@ -846,34 +838,36 @@ public sealed class GtpSession
     private void RunAnalysisStream(
         StoneColor color,
         Func<IReadOnlyList<GtpAnalysisMove>, string> format,
-        TimeSpan interval,
         CancellationToken cancellationToken)
     {
-        lock (_engineLock)
+        while (!cancellationToken.IsCancellationRequested)
         {
+            IReadOnlyList<GtpAnalysisMove> moves;
+            lock (_engineLock)
+            {
+                if (cancellationToken.IsCancellationRequested)
+                {
+                    return;
+                }
+
+                moves = _engine.Analyze(color, AnalysisCandidateCount, cancellationToken, AnalysisStreamThinkSeconds);
+            }
+
             if (cancellationToken.IsCancellationRequested)
             {
                 return;
             }
 
-            _engine.RunAnalysis(
-                color,
-                AnalysisCandidateCount,
-                interval,
-                moves =>
-                {
-                    if (cancellationToken.IsCancellationRequested)
-                    {
-                        return;
-                    }
+            var output = format(moves);
+            if (output.Length > 0)
+            {
+                _writeAnalysisOutput?.Invoke(output + "\n");
+            }
 
-                    var output = format(moves);
-                    if (output.Length > 0)
-                    {
-                        _writeAnalysisOutput?.Invoke(output + "\n");
-                    }
-                },
-                cancellationToken);
+            if (cancellationToken.WaitHandle.WaitOne(AnalysisIntervalMilliseconds))
+            {
+                return;
+            }
         }
     }
 

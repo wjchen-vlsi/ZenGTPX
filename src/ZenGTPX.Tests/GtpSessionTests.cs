@@ -611,11 +611,11 @@ public sealed class GtpSessionTests
     }
 
     [DataTestMethod]
-    [DataRow("lz-analyze abc", "? lz-analyze interval must be an integer\n\n")]
-    [DataRow("lz-analyze 0", "? lz-analyze interval must be positive\n\n")]
-    [DataRow("kata-analyze b abc", "? kata-analyze interval must be an integer\n\n")]
-    [DataRow("kata-analyze b 0", "? kata-analyze interval must be positive\n\n")]
-    public void Execute_Analyze_InvalidInterval_ReturnsCommandSpecificError(string command, string expected)
+    [DataRow("lz-analyze abc", "? lz-analyze visits must be an integer\n\n")]
+    [DataRow("lz-analyze 0", "? lz-analyze visits must be positive\n\n")]
+    [DataRow("kata-analyze b abc", "? kata-analyze visits must be an integer\n\n")]
+    [DataRow("kata-analyze b 0", "? kata-analyze visits must be positive\n\n")]
+    public void Execute_Analyze_InvalidVisits_ReturnsCommandSpecificError(string command, string expected)
     {
         var engine = new FakeGtpEngine();
         var result = Execute(command, engine);
@@ -632,7 +632,7 @@ public sealed class GtpSessionTests
 
         Execute("kata-analyze b 10", session);
         Assert.IsTrue(engine.WaitForAnalyzeStarted());
-        Assert.AreEqual(TimeSpan.FromMilliseconds(100), engine.LastAnalysisInterval);
+        Assert.AreEqual(2.0, engine.LastAnalyzeMaxTimeSeconds);
 
         var result = Execute("stop", session);
 
@@ -653,7 +653,7 @@ public sealed class GtpSessionTests
 
         Assert.AreEqual("=\n\n", result.Response.Format());
         Assert.IsTrue(engine.LastAnalyzeCancellationRequested);
-        CollectionAssert.AreEqual(new[] { "RunAnalysis:Black:10:100", "Play:Black:D16" }, engine.Calls);
+        CollectionAssert.AreEqual(new[] { "Analyze:Black:10", "Play:Black:D16" }, engine.Calls);
     }
 
     [DataTestMethod]
@@ -1386,8 +1386,6 @@ public sealed class GtpSessionTests
 
         public double? LastAnalyzeMaxTimeSeconds { get; private set; }
 
-        public TimeSpan? LastAnalysisInterval { get; private set; }
-
         public IReadOnlyList<GtpPolicyPoint> PolicyPoints { get; init; } = [];
 
         public int LastPolicyCount { get; private set; }
@@ -1516,27 +1514,6 @@ public sealed class GtpSessionTests
             }
 
             return AnalysisMoves.Take(maxCandidates).ToArray();
-        }
-
-        public void RunAnalysis(
-            StoneColor color,
-            int maxCandidates,
-            TimeSpan interval,
-            Action<IReadOnlyList<GtpAnalysisMove>> onMoves,
-            CancellationToken cancellationToken)
-        {
-            LastAnalyzeColor = color;
-            LastAnalysisInterval = interval;
-            AddCall($"RunAnalysis:{color}:{maxCandidates}:{interval.TotalMilliseconds}");
-            _analyzeStarted.Set();
-            if (BlockAnalyzeUntilCanceled)
-            {
-                cancellationToken.WaitHandle.WaitOne(TimeSpan.FromSeconds(5));
-                LastAnalyzeCancellationRequested = cancellationToken.IsCancellationRequested;
-                return;
-            }
-
-            onMoves(AnalysisMoves.Take(maxCandidates).ToArray());
         }
 
         public IReadOnlyList<GtpPolicyPoint> GetPolicy(int count)

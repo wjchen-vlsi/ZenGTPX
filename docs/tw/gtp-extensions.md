@@ -7,16 +7,15 @@
 
 ZenGTPX 支援第一版供 GUI 顯示候選點用的 GTP analysis commands：
 
-- `lz-analyze [interval]`
-- `kata-analyze [color] [interval]`
-- `analyze [color] [interval]`
+- `lz-analyze [visits]`
+- `kata-analyze <color> [visits]`
+- `analyze <color> [visits]`
 - `lz-genmove_analyze [color] [interval]`
 - `kata-genmove_analyze [color] [interval]`
 - `genmove_analyze [color] [interval]`
 - `stop`
 
 使用一般執行檔入口時，analysis commands 會先以 `=` 確認 GTP 指令，然後持續在背景輸出 `info move ...` 分析行，直到收到 `stop` 或會改變棋盤的指令。
-選用的 `interval` 參數比照 KataGo / Leela-style centiseconds。例如 `kata-analyze B 10` 表示在底層 Zen search 持續進行時，ZenGTPX 會約每 100 ms 取樣並輸出 analysis。
 候選點座標、playouts、winrate 與 PV 文字來自 `ZenGetTopMoveInfo(index)`。
 `prior` 由 `ZenGetPolicyKnowledge` 取得的正 policy values，在回傳候選集合內正規化而來。
 `analyze` 會作為 KataGo-style alias 接受，用於 GUI 相容。
@@ -39,7 +38,6 @@ info move Q16 visits 1700 winrate 5342 pv Q16 D4
 
 - `stop` 會要求取消背景串流，並中斷進行中的 Zen analysis loop。原生清理仍取決於 `ZenStopThinking` 是否返回。
 - 候選點座標、playouts、winrate 與 PV 文字來自 `ZenGetTopMoveInfo(index)`。
-- Analysis output 來自同一次連續 Zen thinking session 的取樣。若 Zen native calls 或 GUI I/O 花費較久，實際輸出頻率可能慢於指定 interval。
 - `prior` 是由 Zen policy knowledge 推導，並在回傳候選點間正規化；不應視為 KataGo-equivalent neural policy prior。
 - `scoreLead` 與 `scoreMean` 是由 winrate 推導的相容性 placeholder，因為 Zen7 目前未透過 wrapped API 暴露可靠的等價數值。
 - LizzieYzy Next 若要顯示多候選點，請在 `zen7.cfg` 使用 `gtpName = KataGo`；這只會改變 GTP `name` 回應。
@@ -53,7 +51,7 @@ play <vertex>
 ```
 
 選出的手會套用到內部棋盤狀態，行為與 `genmove` 一致。
-選用的 `interval` 參數會為了 GUI 相容性接受；但 `genmove_analyze` 目前仍只在搜尋期間輸出單次 analysis snapshot，不是整段落子搜尋過程的長時間串流。
+選用的 `interval` 參數會為了 GUI 相容性接受，但 ZenGTPX 目前只輸出單次最終 analysis snapshot，不做長時間串流。
 `genmove_analyze` 會作為 KataGo-style alias 接受，用於未使用 `kata-` 前綴的 GUI 路徑。
 
 ## `zengtp_last_search_info`
