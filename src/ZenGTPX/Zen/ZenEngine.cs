@@ -10,7 +10,6 @@ public sealed class ZenEngine : IGtpEngine, IDisposable
 {
     private readonly ZenNative _native;
     private readonly ZenGtpOptions _options;
-    private readonly double _configuredMaxTime;
     private int _boardSize;
     private double _komi;
     private double _maxTime;
@@ -19,7 +18,6 @@ public sealed class ZenEngine : IGtpEngine, IDisposable
     {
         _native = native;
         _options = options;
-        _configuredMaxTime = options.MaxTimeSeconds;
         _boardSize = options.BoardSize;
         _komi = options.Komi;
         _maxTime = options.MaxTimeSeconds;
@@ -105,11 +103,6 @@ public sealed class ZenEngine : IGtpEngine, IDisposable
         _maxTime = seconds;
     }
 
-    public void ResetMaxTime()
-    {
-        SetMaxTime(_configuredMaxTime);
-    }
-
     public void SetTimeSettings(double mainTime, double byoyomiTime, int periods)
     {
         if (mainTime < 0 || byoyomiTime < 0)
@@ -128,10 +121,6 @@ public sealed class ZenEngine : IGtpEngine, IDisposable
         if (maxTime > 0)
         {
             SetMaxTime(maxTime);
-        }
-        else
-        {
-            ResetMaxTime();
         }
     }
 

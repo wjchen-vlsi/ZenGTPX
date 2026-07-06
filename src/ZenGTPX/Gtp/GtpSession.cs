@@ -720,32 +720,15 @@ public sealed class GtpSession
 
         var name = command.Arguments[0];
         var value = command.Arguments[1];
-        if (name.Equals("maxTime", StringComparison.Ordinal))
+        _kataParameters[name] = value;
+        if (name.Equals("maxTime", StringComparison.Ordinal) && double.TryParse(value, CultureInfo.InvariantCulture, out var maxTime))
         {
-            if (!TryParseDouble(value, out var maxTime))
-            {
-                return Error(command, "kata-set-param maxTime must be numeric");
-            }
-
-            if (maxTime < 0)
-            {
-                return Error(command, "kata-set-param maxTime must not be negative");
-            }
-
             lock (_engineLock)
             {
-                if (maxTime > 0)
-                {
-                    _engine.SetMaxTime(maxTime);
-                }
-                else
-                {
-                    _engine.ResetMaxTime();
-                }
+                _engine.SetMaxTime(maxTime);
             }
         }
 
-        _kataParameters[name] = value;
         return Success(command, "");
     }
 

@@ -110,8 +110,6 @@ resignThreshold = 0.1
 - `gtpName` 只控制 GTP `name` 回應。預設部署設定使用 `KataGo`，因為 LizzieYzy Next 會在 KataGo-compatible 路徑啟用多候選點分析顯示。
 - `gtpName = KataGo` 不代表 ZenGTPX 支援 KataGo `analysis` JSON protocol。
 - `time_settings` / `time_left` 會在支援時轉送到 Zen 原生時間 API；`time_settings` 也會更新 wrapper 的每手期限。
-- `kata-set-param maxTime N` 且 `N > 0` 時，會套用 GUI runtime 每手時間上限。
-- `kata-set-param maxTime 0` 與 `time_settings 0 0 0` 會恢復啟動時由 `zen7.cfg` / CLI 得到的 effective `maxTimeSeconds`。若希望 ZenGTPX 使用自己的 rank preset 時間，GUI 每手用時可設為 `0`。
 - `final_score` 使用 ZenGTP.py 相容公式，依 Zen territory statistics 估算。`finalScoreRule = japanese` / `territory` 使用 territory scoring；`chinese` / `area` 使用 area scoring。
 - `final_status_list alive|dead|seki` 是相容性 stub，會回傳空清單；ZenGTPX 目前不提供可靠的死子判定。
 - `zengtp_final_score_detail` 會回傳 scripts 與診斷用的估算拆解，包含 configured、area、territory 與 capture-adjusted 數值。

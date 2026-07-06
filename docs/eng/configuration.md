@@ -110,8 +110,6 @@ These are used directly only with `mode = advanced`; `mode = rank` and `mode = f
 - `gtpName` controls the GTP `name` response only. The default deployment config uses `KataGo` because LizzieYzy Next enables multi-candidate analysis display on its KataGo-compatible path.
 - `gtpName = KataGo` does not mean ZenGTPX supports KataGo `analysis` JSON protocol.
 - `time_settings` / `time_left` are forwarded to Zen native time API where supported; `time_settings` also updates the wrapper's per-move deadline.
-- `kata-set-param maxTime N` with `N > 0` applies a GUI runtime time cap for the current engine session.
-- `kata-set-param maxTime 0` and `time_settings 0 0 0` restore the startup effective `maxTimeSeconds` from `zen7.cfg` / CLI. This lets GUI users set time per move to `0` when they want ZenGTPX to use its own rank preset timing.
 - `final_score` uses ZenGTP.py-compatible scoring over Zen territory statistics. `finalScoreRule = japanese` / `territory` uses territory scoring; `chinese` / `area` uses area scoring.
 - `final_status_list alive|dead|seki` is a compatibility stub that returns an empty list; ZenGTPX does not currently provide reliable dead-stone adjudication.
 - `zengtp_final_score_detail` returns the estimate breakdown for scripts and diagnostics, including configured, area, territory, and capture-adjusted values.
