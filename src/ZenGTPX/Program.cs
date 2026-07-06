@@ -2,6 +2,7 @@ using System.Globalization;
 using ZenGTPX.Gtp;
 using ZenGTPX.Config;
 using ZenGTPX.Zen;
+using ZenGTPX.Board;
 
 var startup = InitializeZen(args);
 if (startup is null)
@@ -31,6 +32,11 @@ while (Console.In.ReadLine() is { } line)
     }
 
     Trace("> " + result.Response.Format().TrimEnd());
+    if (IsMoveGenerationCommand(command.Name) && engine.LastSearchInfo is { } searchInfo)
+    {
+        Trace("# " + FormatSearchDiagnostic(searchInfo, engine.BoardSize));
+    }
+
     lock (outputLock)
     {
         if (result.OutputBeforeResponse.Length > 0)
@@ -126,4 +132,35 @@ static string ExpandTracePath(string path, string baseDirectory)
 void Trace(string message)
 {
     trace?.WriteLine($"{DateTimeOffset.Now:yyyy-MM-dd HH:mm:ss.fff zzz} {message}");
+}
+
+static bool IsMoveGenerationCommand(string commandName)
+{
+    return commandName is
+        "genmove" or
+        "genmove_analyze" or
+        "kata-genmove_analyze" or
+        "lz-genmove_analyze";
+}
+
+static string FormatSearchDiagnostic(GtpSearchInfo searchInfo, int boardSize)
+{
+    return string.Create(
+        CultureInfo.InvariantCulture,
+        $"search move {FormatTraceMove(searchInfo.Move, boardSize)} playouts {searchInfo.Playouts} winrate {searchInfo.Winrate:0.0000} elapsed {searchInfo.TimeSeconds:0.000} maxTime {searchInfo.MaxTimeSeconds:0.###} maxSimulations {searchInfo.MaxSimulations} threads {searchInfo.Threads} stopReason {searchInfo.StopReason}");
+}
+
+static string FormatTraceMove(GtpMove move, int boardSize)
+{
+    if (move.IsResign)
+    {
+        return "resign";
+    }
+
+    if (move.IsPass || move.Coordinate is not { } coordinate)
+    {
+        return "pass";
+    }
+
+    return GtpVertex.Format(coordinate, boardSize);
 }

@@ -19,6 +19,7 @@ internal sealed class ZenNative : IDisposable
     private readonly ZenIsThinking _isThinking;
     private readonly ZenPass _pass;
     private readonly ZenPlay _play;
+    private readonly ZenReadGeneratedMove _readGeneratedMove;
     private readonly ZenSetBoardSize _setBoardSize;
     private readonly ZenSetKomi _setKomi;
     private readonly ZenSetMaxTime _setMaxTime;
@@ -48,6 +49,7 @@ internal sealed class ZenNative : IDisposable
         ZenIsThinking isThinking,
         ZenPass pass,
         ZenPlay play,
+        ZenReadGeneratedMove readGeneratedMove,
         ZenSetBoardSize setBoardSize,
         ZenSetKomi setKomi,
         ZenSetMaxTime setMaxTime,
@@ -76,6 +78,7 @@ internal sealed class ZenNative : IDisposable
         _isThinking = isThinking;
         _pass = pass;
         _play = play;
+        _readGeneratedMove = readGeneratedMove;
         _setBoardSize = setBoardSize;
         _setKomi = setKomi;
         _setMaxTime = setMaxTime;
@@ -94,7 +97,7 @@ internal sealed class ZenNative : IDisposable
 
     public bool IsInitialized => _isInitialized() != 0;
 
-    public bool IsThinking => _isThinking() != 0;
+    public bool IsThinking => _isThinking() != int.MinValue;
 
     public static ZenNative Load(string dllPath)
     {
@@ -125,6 +128,7 @@ internal sealed class ZenNative : IDisposable
                 Get<ZenIsThinking>(module, 17, "ZenIsThinking"),
                 Get<ZenPass>(module, 19, "ZenPass"),
                 Get<ZenPlay>(module, 20, "ZenPlay"),
+                Get<ZenReadGeneratedMove>(module, 21, "ZenReadGeneratedMove"),
                 Get<ZenSetBoardSize>(module, 22, "ZenSetBoardSize"),
                 Get<ZenSetKomi>(module, 23, "ZenSetKomi"),
                 Get<ZenSetMaxTime>(module, 24, "ZenSetMaxTime"),
@@ -213,6 +217,16 @@ internal sealed class ZenNative : IDisposable
 
     public bool Play(int x, int y, int color) => _play(x, y, color) != 0;
 
+    public ZenGeneratedMove ReadGeneratedMove()
+    {
+        var x = 0;
+        var y = 0;
+        byte pass = 0;
+        byte resign = 0;
+        _readGeneratedMove(ref x, ref y, ref pass, ref resign);
+        return new ZenGeneratedMove(x, y, pass != 0, resign != 0);
+    }
+
     public void SetBoardSize(int boardSize) => _setBoardSize(boardSize);
 
     public void SetKomi(float komi) => _setKomi(komi);
@@ -286,13 +300,16 @@ internal sealed class ZenNative : IDisposable
     private delegate byte ZenIsInitialized();
 
     [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-    private delegate byte ZenIsThinking();
+    private delegate int ZenIsThinking();
 
     [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
     private delegate void ZenPass(int color);
 
     [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
     private delegate byte ZenPlay(int x, int y, int color);
+
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+    private delegate void ZenReadGeneratedMove(ref int x, ref int y, ref byte pass, ref byte resign);
 
     [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
     private delegate void ZenSetBoardSize(int boardSize);
@@ -338,6 +355,8 @@ internal sealed class ZenNative : IDisposable
 }
 
 internal readonly record struct ZenTopMove(int X, int Y, int Playouts, float Winrate, string Text);
+
+internal readonly record struct ZenGeneratedMove(int X, int Y, bool Pass, bool Resign);
 
 internal static partial class NativeMethods
 {

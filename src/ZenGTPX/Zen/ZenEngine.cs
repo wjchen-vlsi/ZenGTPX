@@ -41,13 +41,9 @@ public sealed class ZenEngine : IGtpEngine, IDisposable
             }
 
             native.SetNumberOfThreads(options.Threads);
-            native.SetNumberOfSimulations(options.MaxSimulations);
-            native.SetMaxTime((float)options.MaxTimeSeconds);
+            ApplySearchSettings(native, options);
             native.SetBoardSize(options.BoardSize);
             native.SetKomi((float)options.Komi);
-            native.SetPnLevel(options.PnLevel);
-            native.SetPnWeight((float)options.PnWeight);
-            native.SetVnMixRate((float)options.VnMixRate);
             native.ClearBoard();
 
             return new ZenEngine(native, options);
@@ -119,8 +115,6 @@ public sealed class ZenEngine : IGtpEngine, IDisposable
             throw new ArgumentOutOfRangeException(nameof(periods), "Time periods must not be negative.");
         }
 
-        _native.TimeSettings(ToNativeSeconds(mainTime), ToNativeSeconds(byoyomiTime), periods);
-
         var maxTime = byoyomiTime > 0 ? byoyomiTime : mainTime;
         if (maxTime > 0)
         {
@@ -171,27 +165,55 @@ public sealed class ZenEngine : IGtpEngine, IDisposable
         var zenColor = (int)color;
         _native.SetNextColor(zenColor);
         var stopwatch = Stopwatch.StartNew();
-        var topMove = ThinkUntilTopMove(zenColor);
+        var searchResult = ThinkUntilTopMove(zenColor);
         stopwatch.Stop();
+        var topMove = searchResult.TopMove;
+        var generatedMove = _native.ReadGeneratedMove();
 
-        if (topMove.Playouts <= 0 || !IsOnBoard(topMove.X, topMove.Y))
+        if (generatedMove.Resign)
         {
-            _native.Pass(zenColor);
-            LastSearchInfo = new GtpSearchInfo(GtpMove.Pass, topMove.Playouts, topMove.Winrate, stopwatch.Elapsed.TotalSeconds);
-            return GtpMove.Pass;
-        }
-
-        if (topMove.Winrate < _options.ResignThreshold)
-        {
-            LastSearchInfo = new GtpSearchInfo(GtpMove.Resign, topMove.Playouts, topMove.Winrate, stopwatch.Elapsed.TotalSeconds);
+            LastSearchInfo = CreateSearchInfo(
+                GtpMove.Resign,
+                topMove,
+                stopwatch.Elapsed.TotalSeconds,
+                searchResult.StopReason);
             return GtpMove.Resign;
         }
 
-        var coordinate = new BoardCoordinate(topMove.X, topMove.Y);
+        if (generatedMove.Pass || !IsOnBoard(generatedMove.X, generatedMove.Y))
+        {
+            _native.Pass(zenColor);
+            LastSearchInfo = CreateSearchInfo(
+                GtpMove.Pass,
+                topMove,
+                stopwatch.Elapsed.TotalSeconds,
+                searchResult.StopReason);
+            return GtpMove.Pass;
+        }
+
+        var shouldResign = IsOnBoard(topMove.X, topMove.Y)
+            && topMove.Winrate >= 0.0f
+            && topMove.Winrate <= 1.0f
+            && topMove.Winrate < _options.ResignThreshold;
+        if (shouldResign)
+        {
+            LastSearchInfo = CreateSearchInfo(
+                GtpMove.Resign,
+                topMove,
+                stopwatch.Elapsed.TotalSeconds,
+                searchResult.StopReason);
+            return GtpMove.Resign;
+        }
+
+        var coordinate = new BoardCoordinate(generatedMove.X, generatedMove.Y);
         var move = _native.Play(coordinate.X, coordinate.Y, zenColor)
             ? GtpMove.Play(coordinate)
             : Pass(zenColor);
-        LastSearchInfo = new GtpSearchInfo(move, topMove.Playouts, topMove.Winrate, stopwatch.Elapsed.TotalSeconds);
+        LastSearchInfo = CreateSearchInfo(
+            move,
+            topMove,
+            stopwatch.Elapsed.TotalSeconds,
+            searchResult.StopReason);
         return move;
     }
 
@@ -451,9 +473,27 @@ public sealed class ZenEngine : IGtpEngine, IDisposable
             : territory[y, x] < -threshold;
     }
 
-    private ZenTopMove ThinkUntilTopMove(int zenColor)
+    private GtpSearchInfo CreateSearchInfo(
+        GtpMove move,
+        ZenTopMove topMove,
+        double elapsedSeconds,
+        string stopReason)
+    {
+        return new GtpSearchInfo(
+            move,
+            topMove.Playouts,
+            topMove.Winrate,
+            elapsedSeconds,
+            stopReason,
+            _maxTime,
+            _options.MaxSimulations,
+            _options.Threads);
+    }
+
+    private ZenSearchResult ThinkUntilTopMove(int zenColor)
     {
         ZenTopMove topMove = default;
+        var stopReason = "timeout";
         _native.StartThinking(zenColor);
 
         try
@@ -463,8 +503,9 @@ public sealed class ZenEngine : IGtpEngine, IDisposable
             {
                 Thread.Sleep(100);
                 topMove = _native.GetTopMoveInfo(0);
-                if (topMove.Playouts >= _options.MaxSimulations || !_native.IsThinking)
+                if (!_native.IsThinking)
                 {
+                    stopReason = "nativeStopped";
                     break;
                 }
             }
@@ -474,7 +515,8 @@ public sealed class ZenEngine : IGtpEngine, IDisposable
             _native.StopThinking();
         }
 
-        return topMove.Playouts > 0 ? topMove : _native.GetTopMoveInfo(0);
+        var finalTopMove = topMove.Playouts > 0 ? topMove : _native.GetTopMoveInfo(0);
+        return new ZenSearchResult(finalTopMove, stopReason);
     }
 
     private IReadOnlyList<GtpAnalysisMove> ThinkUntilAnalysisMoves(
@@ -577,6 +619,15 @@ public sealed class ZenEngine : IGtpEngine, IDisposable
         return GtpMove.Pass;
     }
 
+    private static void ApplySearchSettings(ZenNative native, ZenGtpOptions options)
+    {
+        native.SetNumberOfSimulations(options.MaxSimulations);
+        native.SetMaxTime((float)options.MaxTimeSeconds);
+        native.SetPnLevel(options.PnLevel);
+        native.SetPnWeight((float)options.PnWeight);
+        native.SetVnMixRate((float)options.VnMixRate);
+    }
+
     private bool IsOnBoard(int x, int y)
     {
         return x >= 0 && x < _boardSize && y >= 0 && y < _boardSize;
@@ -604,4 +655,6 @@ public sealed class ZenEngine : IGtpEngine, IDisposable
         int WhiteAlive,
         int WhiteCapture,
         int WhiteTerritory);
+
+    private readonly record struct ZenSearchResult(ZenTopMove TopMove, string StopReason);
 }
