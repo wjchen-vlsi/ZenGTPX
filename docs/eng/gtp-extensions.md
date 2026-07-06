@@ -56,6 +56,18 @@ The chosen move is applied to the internal board state, matching `genmove` behav
 The optional `interval` argument is accepted for GUI compatibility, but ZenGTPX currently emits a single final analysis snapshot during `genmove_analyze` rather than a long-running stream throughout the move search.
 `genmove_analyze` is accepted as a KataGo-style alias for GUIs that do not use the `kata-` prefix.
 
+## KataGo-compatible time commands
+
+ZenGTPX accepts `kata-time_settings` and `kata-set-param maxTime` for GUI compatibility.
+
+Compatibility behavior:
+
+- `kata-time_settings none` means the GUI requested no runtime time control for ZenGTPX. After this command, `kata-set-param maxTime <seconds>` is recorded for `kata-get-param` compatibility but does not override the engine's configured max time.
+- Any non-`none` `kata-time_settings ...` re-enables `kata-set-param maxTime <seconds>` as a runtime max-time override.
+- Standard `time_settings ...` also re-enables runtime max-time handling.
+
+This is intentionally stricter than treating every KataGo-compatible command independently, because LizzieYzy Next may send `kata-time_settings none` and then still send its generic `kata-set-param maxTime` value.
+
 ## `zengtp_last_search_info`
 
 Returns the search summary recorded by the most recent successful `genmove`.

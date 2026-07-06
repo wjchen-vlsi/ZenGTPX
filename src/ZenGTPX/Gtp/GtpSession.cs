@@ -66,6 +66,7 @@ public sealed class GtpSession
     private readonly Action<string>? _writeAnalysisOutput;
     private CancellationTokenSource? _analysisCancellation;
     private Thread? _analysisThread;
+    private bool _ignoreKataMaxTime;
 
     public GtpSession(IGtpEngine engine, Action<string>? writeAnalysisOutput = null)
     {
@@ -424,6 +425,7 @@ public sealed class GtpSession
             _engine.SetTimeSettings(mainTime, byoyomiTime, periods);
         }
 
+        _ignoreKataMaxTime = false;
         return Success(command, "");
     }
 
@@ -729,7 +731,9 @@ public sealed class GtpSession
         var name = command.Arguments[0];
         var value = command.Arguments[1];
         _kataParameters[name] = value;
-        if (name.Equals("maxTime", StringComparison.Ordinal) && double.TryParse(value, CultureInfo.InvariantCulture, out var maxTime))
+        if (name.Equals("maxTime", StringComparison.Ordinal) &&
+            !_ignoreKataMaxTime &&
+            double.TryParse(value, CultureInfo.InvariantCulture, out var maxTime))
         {
             lock (_engineLock)
             {
@@ -772,13 +776,14 @@ public sealed class GtpSession
             "{\"ko\":\"SIMPLE\",\"scoring\":\"AREA\",\"tax\":\"NONE\",\"multiStoneSuicideLegal\":false,\"hasButton\":false,\"whiteHandicapBonus\":\"N\",\"friendlyPassOk\":false}");
     }
 
-    private static GtpExecutionResult KataTimeSettings(GtpCommand command)
+    private GtpExecutionResult KataTimeSettings(GtpCommand command)
     {
         if (command.Arguments.Count == 0)
         {
             return Error(command, "kata-time_settings requires arguments");
         }
 
+        _ignoreKataMaxTime = command.Arguments[0].Equals("none", StringComparison.OrdinalIgnoreCase);
         return Success(command, "");
     }
 

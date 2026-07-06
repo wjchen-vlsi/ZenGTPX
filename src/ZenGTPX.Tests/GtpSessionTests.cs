@@ -1075,6 +1075,52 @@ public sealed class GtpSessionTests
     }
 
     [TestMethod]
+    public void Execute_KataTimeSettingsNone_IgnoresSubsequentMaxTime()
+    {
+        var engine = new FakeGtpEngine();
+        var session = new GtpSession(engine);
+
+        var none = Execute("kata-time_settings none", session);
+        var maxTime = Execute("kata-set-param maxTime 10", session);
+        var getParam = Execute("kata-get-param maxTime", session);
+
+        Assert.AreEqual("=\n\n", none.Response.Format());
+        Assert.AreEqual("=\n\n", maxTime.Response.Format());
+        Assert.AreEqual("= 10\n\n", getParam.Response.Format());
+        CollectionAssert.AreEqual(Array.Empty<string>(), engine.Calls);
+    }
+
+    [TestMethod]
+    public void Execute_KataTimeSettingsNonNone_AllowsSubsequentMaxTime()
+    {
+        var engine = new FakeGtpEngine();
+        var session = new GtpSession(engine);
+
+        Execute("kata-time_settings none", session);
+        Execute("kata-time_settings byoyomi 10 3", session);
+        var result = Execute("kata-set-param maxTime 10", session);
+
+        Assert.AreEqual("=\n\n", result.Response.Format());
+        Assert.AreEqual(10.0, engine.MaxTime);
+        CollectionAssert.AreEqual(new[] { "SetMaxTime:10" }, engine.Calls);
+    }
+
+    [TestMethod]
+    public void Execute_TimeSettings_ReenablesKataMaxTime()
+    {
+        var engine = new FakeGtpEngine();
+        var session = new GtpSession(engine);
+
+        Execute("kata-time_settings none", session);
+        Execute("time_settings 60 10 3", session);
+        var result = Execute("kata-set-param maxTime 5", session);
+
+        Assert.AreEqual("=\n\n", result.Response.Format());
+        Assert.AreEqual(5.0, engine.MaxTime);
+        CollectionAssert.AreEqual(new[] { "SetTimeSettings:60:10:3", "SetMaxTime:5" }, engine.Calls);
+    }
+
+    [TestMethod]
     public void Execute_TimeLeft_ForwardsToEngine()
     {
         var engine = new FakeGtpEngine();

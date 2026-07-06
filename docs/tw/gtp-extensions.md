@@ -56,6 +56,18 @@ play <vertex>
 選用的 `interval` 參數會為了 GUI 相容性接受；但 `genmove_analyze` 目前仍只在搜尋期間輸出單次 analysis snapshot，不是整段落子搜尋過程的長時間串流。
 `genmove_analyze` 會作為 KataGo-style alias 接受，用於未使用 `kata-` 前綴的 GUI 路徑。
 
+## KataGo-compatible time commands
+
+ZenGTPX 為 GUI 相容性接受 `kata-time_settings` 與 `kata-set-param maxTime`。
+
+相容行為：
+
+- `kata-time_settings none` 表示 GUI 要求 ZenGTPX 不使用 runtime time control。收到此命令後，後續 `kata-set-param maxTime <seconds>` 只會為了 `kata-get-param` 相容性記錄參數值，不會覆蓋 engine 的 configured max time。
+- 任一非 `none` 的 `kata-time_settings ...` 會重新允許 `kata-set-param maxTime <seconds>` 作為 runtime max-time override。
+- 標準 `time_settings ...` 也會重新允許 runtime max-time handling。
+
+此語意刻意比「每個 KataGo-compatible command 完全獨立處理」更嚴格，因為 LizzieYzy Next 可能先送 `kata-time_settings none`，接著仍送 generic `kata-set-param maxTime` 值。
+
 ## `zengtp_last_search_info`
 
 回傳最近一次成功 `genmove` 記錄的搜尋摘要。
