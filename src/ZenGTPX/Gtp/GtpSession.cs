@@ -6,7 +6,7 @@ namespace ZenGTPX.Gtp;
 public sealed class GtpSession
 {
     private const int AnalysisCandidateCount = 10;
-    private const int AnalysisIntervalMilliseconds = 1000;
+    private const int DefaultAnalysisIntervalCentiseconds = 100;
 
     private static readonly string[] Commands =
     [
@@ -600,19 +600,20 @@ public sealed class GtpSession
     {
         if (command.Arguments.Count > 1)
         {
-            return Error(command, "lz-analyze accepts at most one visits argument");
+            return Error(command, "lz-analyze accepts at most one interval argument");
         }
 
+        var interval = DefaultAnalysisIntervalCentiseconds;
         if (command.Arguments.Count == 1)
         {
-            if (!TryParseInteger(command.Arguments[0], out var visits))
+            if (!TryParseInteger(command.Arguments[0], out interval))
             {
-                return Error(command, "lz-analyze visits must be an integer");
+                return Error(command, "lz-analyze interval must be an integer");
             }
 
-            if (visits <= 0)
+            if (interval <= 0)
             {
-                return Error(command, "lz-analyze visits must be positive");
+                return Error(command, "lz-analyze interval must be positive");
             }
         }
 
@@ -628,7 +629,7 @@ public sealed class GtpSession
             return AnalysisSuccess(command, FormatLzAnalysis(moves));
         }
 
-        StartAnalysisStream(color, FormatLzAnalysis);
+        StartAnalysisStream(color, FormatLzAnalysis, interval);
         return Success(command, "");
     }
 
@@ -636,27 +637,28 @@ public sealed class GtpSession
     {
         if (command.Arguments.Count > 2)
         {
-            return Error(command, "kata-analyze accepts optional color and optional visits argument");
+            return Error(command, "kata-analyze accepts optional color and optional interval argument");
         }
 
         var color = _board.NextColor;
-        var visitsIndex = 0;
+        var intervalIndex = 0;
         if (command.Arguments.Count > 0 && TryParseColor(command.Arguments[0], out var explicitColor))
         {
             color = explicitColor;
-            visitsIndex = 1;
+            intervalIndex = 1;
         }
 
-        if (command.Arguments.Count > visitsIndex)
+        var interval = DefaultAnalysisIntervalCentiseconds;
+        if (command.Arguments.Count > intervalIndex)
         {
-            if (!TryParseInteger(command.Arguments[visitsIndex], out var visits))
+            if (!TryParseInteger(command.Arguments[intervalIndex], out interval))
             {
-                return Error(command, "kata-analyze visits must be an integer");
+                return Error(command, "kata-analyze interval must be an integer");
             }
 
-            if (visits <= 0)
+            if (interval <= 0)
             {
-                return Error(command, "kata-analyze visits must be positive");
+                return Error(command, "kata-analyze interval must be positive");
             }
         }
 
@@ -671,7 +673,7 @@ public sealed class GtpSession
             return AnalysisSuccess(command, FormatKataAnalysis(moves));
         }
 
-        StartAnalysisStream(color, FormatKataAnalysis);
+        StartAnalysisStream(color, FormatKataAnalysis, interval);
         return Success(command, "");
     }
 
@@ -790,7 +792,10 @@ public sealed class GtpSession
         return new GtpExecutionResult(GtpResponse.Success(command.Id), ShouldQuit: true);
     }
 
-    private void StartAnalysisStream(StoneColor color, Func<IReadOnlyList<GtpAnalysisMove>, string> format)
+    private void StartAnalysisStream(
+        StoneColor color,
+        Func<IReadOnlyList<GtpAnalysisMove>, string> format,
+        int intervalCentiseconds)
     {
         StopAnalysis();
         if (_writeAnalysisOutput is null)
@@ -800,7 +805,11 @@ public sealed class GtpSession
 
         var cancellation = new CancellationTokenSource();
         _analysisCancellation = cancellation;
-        _analysisThread = new Thread(() => RunAnalysisStream(color, format, cancellation.Token))
+        _analysisThread = new Thread(() => RunAnalysisStream(
+            color,
+            format,
+            TimeSpan.FromMilliseconds(intervalCentiseconds * 10),
+            cancellation.Token))
         {
             IsBackground = true,
             Name = "ZenGTPX analysis stream",
@@ -811,36 +820,34 @@ public sealed class GtpSession
     private void RunAnalysisStream(
         StoneColor color,
         Func<IReadOnlyList<GtpAnalysisMove>, string> format,
+        TimeSpan interval,
         CancellationToken cancellationToken)
     {
-        while (!cancellationToken.IsCancellationRequested)
+        lock (_engineLock)
         {
-            IReadOnlyList<GtpAnalysisMove> moves;
-            lock (_engineLock)
-            {
-                if (cancellationToken.IsCancellationRequested)
-                {
-                    return;
-                }
-
-                moves = _engine.Analyze(color, AnalysisCandidateCount, cancellationToken);
-            }
-
             if (cancellationToken.IsCancellationRequested)
             {
                 return;
             }
 
-            var output = format(moves);
-            if (output.Length > 0)
-            {
-                _writeAnalysisOutput?.Invoke(output + "\n");
-            }
+            _engine.RunAnalysis(
+                color,
+                AnalysisCandidateCount,
+                interval,
+                moves =>
+                {
+                    if (cancellationToken.IsCancellationRequested)
+                    {
+                        return;
+                    }
 
-            if (cancellationToken.WaitHandle.WaitOne(AnalysisIntervalMilliseconds))
-            {
-                return;
-            }
+                    var output = format(moves);
+                    if (output.Length > 0)
+                    {
+                        _writeAnalysisOutput?.Invoke(output + "\n");
+                    }
+                },
+                cancellationToken);
         }
     }
 
