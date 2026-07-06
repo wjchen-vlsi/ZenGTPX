@@ -526,6 +526,7 @@ public sealed class GtpSessionTests
             "info move Q16 visits 1700 winrate 0.5342 scoreLead 1.0 scoreMean 1.0 prior 0.100 order 0 pv Q16 D4 info move D4 visits 850 winrate 0.4980 scoreLead -0.1 scoreMean -0.1 prior 0.080 order 1 pv D4 Q16\n",
             result.OutputBeforeResponse);
         Assert.AreEqual(StoneColor.Black, engine.LastAnalyzeColor);
+        Assert.IsNull(engine.LastAnalyzeMaxTimeSeconds);
     }
 
     [TestMethod]
@@ -631,6 +632,7 @@ public sealed class GtpSessionTests
 
         Execute("kata-analyze b 10", session);
         Assert.IsTrue(engine.WaitForAnalyzeStarted());
+        Assert.AreEqual(2.0, engine.LastAnalyzeMaxTimeSeconds);
 
         var result = Execute("stop", session);
 
@@ -1382,6 +1384,8 @@ public sealed class GtpSessionTests
 
         public IReadOnlyList<GtpAnalysisMove> AnalysisMoves { get; init; } = [];
 
+        public double? LastAnalyzeMaxTimeSeconds { get; private set; }
+
         public IReadOnlyList<GtpPolicyPoint> PolicyPoints { get; init; } = [];
 
         public int LastPolicyCount { get; private set; }
@@ -1496,9 +1500,11 @@ public sealed class GtpSessionTests
         public IReadOnlyList<GtpAnalysisMove> Analyze(
             StoneColor color,
             int maxCandidates,
-            CancellationToken cancellationToken)
+            CancellationToken cancellationToken,
+            double? maxTimeSeconds = null)
         {
             LastAnalyzeColor = color;
+            LastAnalyzeMaxTimeSeconds = maxTimeSeconds;
             AddCall($"Analyze:{color}:{maxCandidates}");
             _analyzeStarted.Set();
             if (BlockAnalyzeUntilCanceled)

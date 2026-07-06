@@ -7,6 +7,7 @@ public sealed class GtpSession
 {
     private const int AnalysisCandidateCount = 10;
     private const int AnalysisIntervalMilliseconds = 1000;
+    private const double AnalysisStreamThinkSeconds = 2.0;
 
     private static readonly string[] Commands =
     [
@@ -849,7 +850,7 @@ public sealed class GtpSession
                     return;
                 }
 
-                moves = _engine.Analyze(color, AnalysisCandidateCount, cancellationToken);
+                moves = _engine.Analyze(color, AnalysisCandidateCount, cancellationToken, AnalysisStreamThinkSeconds);
             }
 
             if (cancellationToken.IsCancellationRequested)
