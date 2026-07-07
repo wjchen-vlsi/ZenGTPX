@@ -21,8 +21,8 @@ public sealed class ZenGtpOptionsTests
         Assert.AreEqual(60.0, options.MaxTimeSeconds);
         Assert.AreEqual(6000, options.MaxSimulations);
         Assert.AreEqual(3, options.PnLevel);
-        Assert.AreEqual(0.75, options.PnWeight);
-        Assert.AreEqual(1.0, options.VnMixRate);
+        Assert.AreEqual(1.0, options.PnWeight);
+        Assert.AreEqual(0.75, options.VnMixRate);
     }
 
     [TestMethod]
@@ -156,8 +156,8 @@ public sealed class ZenGtpOptionsTests
         Assert.AreEqual(6000, options.MaxSimulations);
         Assert.AreEqual(0.1, options.ResignThreshold);
         Assert.AreEqual(3, options.PnLevel);
-        Assert.AreEqual(0.75, options.PnWeight);
-        Assert.AreEqual(1.0, options.VnMixRate);
+        Assert.AreEqual(1.0, options.PnWeight);
+        Assert.AreEqual(0.75, options.VnMixRate);
     }
 
     [TestMethod]
@@ -182,8 +182,8 @@ public sealed class ZenGtpOptionsTests
         Assert.AreEqual(6000, options.MaxSimulations);
         Assert.AreEqual(0.1, options.ResignThreshold);
         Assert.AreEqual(3, options.PnLevel);
-        Assert.AreEqual(0.75, options.PnWeight);
-        Assert.AreEqual(1.0, options.VnMixRate);
+        Assert.AreEqual(1.0, options.PnWeight);
+        Assert.AreEqual(0.75, options.VnMixRate);
     }
 
     [TestMethod]
@@ -210,8 +210,8 @@ public sealed class ZenGtpOptionsTests
         Assert.AreEqual(60.0, options.MaxTimeSeconds);
         Assert.AreEqual(2700, options.MaxSimulations);
         Assert.AreEqual(2, options.PnLevel);
-        Assert.AreEqual(0.55, options.PnWeight);
-        Assert.AreEqual(1.0, options.VnMixRate);
+        Assert.AreEqual(1.0, options.PnWeight);
+        Assert.AreEqual(0.55, options.VnMixRate);
     }
 
     [TestMethod]

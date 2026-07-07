@@ -12,6 +12,6 @@
   "maxSimulations": 6000,
   "resignThreshold": 0.1,
   "pnLevel": 3,
-  "pnWeight": 0.75,
-  "vnMixRate": 1.0
+  "pnWeight": 1.0,
+  "vnMixRate": 0.75
 }

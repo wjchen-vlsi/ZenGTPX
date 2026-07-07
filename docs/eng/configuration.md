@@ -104,8 +104,8 @@ These are used directly only with `mode = advanced`; `mode = rank` and `mode = f
 | `maxTimeSeconds` | `0` or greater | `1-5` fast play, `30-60` stronger play, `300+` analysis |
 | `maxSimulations` | positive integer | `100` smoke, `2700` GUI 5d, `6000` GUI 9d, `1000000` fixed-time |
 | `pnLevel` | `0` to `3` recommended | `3` for strong settings |
-| `pnWeight` | `0.30` to `0.75` in GUI rank table; `1.0` in fixed-time | depends on mode |
-| `vnMixRate` | `1.0` to `4.4` in GUI rank table; `0.75` in fixed-time | depends on mode |
+| `pnWeight` | `1.0` to `4.4` in GUI rank table; `1.0` in fixed-time | depends on mode |
+| `vnMixRate` | `0.30` to `0.75` in GUI rank table; `0.75` in fixed-time | depends on mode |
 
 ## GTP Behavior Notes
 

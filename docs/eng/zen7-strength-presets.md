@@ -19,8 +19,8 @@ This applies the `9d` entry from the Zen7 GUI rank table:
 maxTimeSeconds = 60.0
 maxSimulations = 6000
 pnLevel = 3
-pnWeight = 0.75
-vnMixRate = 1.0
+pnWeight = 1.0
+vnMixRate = 0.75
 ```
 
 To match the Zen7 GUI "specified thinking time" path, use:
@@ -71,21 +71,21 @@ The table below comes from verification of native Zen7 GUI calls into `Zen.dll`.
 
 | Preset | `maxSimulations` | `pnLevel` | `pnWeight` | `vnMixRate` | `maxTimeSeconds` |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| 6k | 1000 | 0 | 0.30 | 1.6 | 60 |
-| 5k | 1100 | 0 | 0.30 | 1.4 | 60 |
-| 4k | 1200 | 0 | 0.30 | 1.0 | 60 |
-| 3k | 1300 | 1 | 0.30 | 2.4 | 60 |
-| 2k | 1400 | 1 | 0.30 | 2.0 | 60 |
-| 1k | 1600 | 1 | 0.30 | 1.6 | 60 |
-| 1d | 1800 | 1 | 0.35 | 1.3 | 60 |
-| 2d | 2000 | 1 | 0.40 | 1.0 | 60 |
-| 3d | 2200 | 2 | 0.45 | 2.0 | 60 |
-| 4d | 2400 | 2 | 0.50 | 1.5 | 60 |
-| 5d | 2700 | 2 | 0.55 | 1.0 | 60 |
-| 6d | 3000 | 3 | 0.60 | 4.4 | 60 |
-| 7d | 3500 | 3 | 0.65 | 2.8 | 60 |
-| 8d | 4000 | 3 | 0.70 | 1.4 | 60 |
-| 9d | 6000 | 3 | 0.75 | 1.0 | 60 |
+| 6k | 1000 | 0 | 1.6 | 0.30 | 60 |
+| 5k | 1100 | 0 | 1.4 | 0.30 | 60 |
+| 4k | 1200 | 0 | 1.0 | 0.30 | 60 |
+| 3k | 1300 | 1 | 2.4 | 0.30 | 60 |
+| 2k | 1400 | 1 | 2.0 | 0.30 | 60 |
+| 1k | 1600 | 1 | 1.6 | 0.30 | 60 |
+| 1d | 1800 | 1 | 1.3 | 0.35 | 60 |
+| 2d | 2000 | 1 | 1.0 | 0.40 | 60 |
+| 3d | 2200 | 2 | 2.0 | 0.45 | 60 |
+| 4d | 2400 | 2 | 1.5 | 0.50 | 60 |
+| 5d | 2700 | 2 | 1.0 | 0.55 | 60 |
+| 6d | 3000 | 3 | 4.4 | 0.60 | 60 |
+| 7d | 3500 | 3 | 2.8 | 0.65 | 60 |
+| 8d | 4000 | 3 | 1.4 | 0.70 | 60 |
+| 9d | 6000 | 3 | 1.0 | 0.75 | 60 |
 
 `9d` is the highest rank in the GUI table, but it is not Zen7's maximum search setting.
 
@@ -209,4 +209,3 @@ This is only suitable for testing startup, GTP protocol handling, and wrapper fl
 Zen7 / Tencho no Igo 7 belongs to the DeepZenGo generation. It can still be useful as an older strong engine or human-play reference, but it should not be expected to match modern KataGo under the same hardware and time limits.
 
 For modern review, winrate, score lead, handicap, and highly stable analysis, KataGo should remain the primary engine.
-

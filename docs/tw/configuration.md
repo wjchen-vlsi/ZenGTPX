@@ -104,8 +104,8 @@ resignThreshold = 0.1
 | `maxTimeSeconds` | `0` 或更大 | `1-5` 快棋，`30-60` 較強對局，`300+` 分析 |
 | `maxSimulations` | 正整數 | `100` 煙霧測試，`2700` GUI 5d，`6000` GUI 9d，`1000000` fixed-time |
 | `pnLevel` | 建議 `0` 到 `3` | 強設定使用 `3` |
-| `pnWeight` | GUI 等級表為 `0.30` 到 `0.75`；fixed-time 為 `1.0` | 依模式而定 |
-| `vnMixRate` | GUI 等級表為 `1.0` 到 `4.4`；fixed-time 為 `0.75` | 依模式而定 |
+| `pnWeight` | GUI 等級表為 `1.0` 到 `4.4`；fixed-time 為 `1.0` | 依模式而定 |
+| `vnMixRate` | GUI 等級表為 `0.30` 到 `0.75`；fixed-time 為 `0.75` | 依模式而定 |
 
 ## GTP 行為備註
 
