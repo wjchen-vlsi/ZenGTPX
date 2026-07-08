@@ -72,6 +72,14 @@ public sealed class GtpSessionTests
     }
 
     [TestMethod]
+    public void Execute_KnownCommand_LoadSgf()
+    {
+        var result = Execute("known_command loadsgf");
+
+        Assert.AreEqual("= true\n\n", result.Response.Format());
+    }
+
+    [TestMethod]
     public void Execute_KnownCommand_FinalScore()
     {
         var result = Execute("known_command final_score");
@@ -184,6 +192,7 @@ public sealed class GtpSessionTests
                 "time_settings",
                 "time_left",
                 "showboard",
+                "loadsgf",
                 "final_score",
                 "final_status_list",
                 "zengtp_final_score_detail",
@@ -262,6 +271,61 @@ public sealed class GtpSessionTests
 
         Assert.AreEqual("=\n\n", result.Response.Format());
         CollectionAssert.AreEqual(new[] { "ClearBoard" }, engine.Calls);
+    }
+
+    [TestMethod]
+    public void Execute_LoadSgf_RebuildsBoardFromMainLine()
+    {
+        var engine = new FakeGtpEngine();
+        var session = new GtpSession(engine);
+        var path = WriteTemporarySgf("(;GM[1]FF[4]SZ[19]KM[6.5];B[pd];W[dd];B[])");
+
+        try
+        {
+            var result = Execute($"loadsgf {path}", session);
+            var showBoard = Execute("showboard", session);
+
+            Assert.AreEqual("=\n\n", result.Response.Format());
+            CollectionAssert.AreEqual(
+                new[] { "SetBoardSize:19", "ClearBoard", "SetKomi:6.5", "Play:Black:Q16", "Play:White:D16", "Play:Black:pass" },
+                engine.Calls);
+            StringAssert.Contains(showBoard.Response.Body, "16 . . . O . . . . . . . . . . . X . . . 16");
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
+    [TestMethod]
+    public void Execute_LoadSgf_OptionalMoveNumberLimitsMainLine()
+    {
+        var engine = new FakeGtpEngine();
+        var path = WriteTemporarySgf("(;SZ[19];B[pd];W[dd];B[qp])");
+
+        try
+        {
+            var result = Execute($"loadsgf {path} 2", engine);
+
+            Assert.AreEqual("=\n\n", result.Response.Format());
+            CollectionAssert.AreEqual(
+                new[] { "SetBoardSize:19", "ClearBoard", "Play:Black:Q16", "Play:White:D16" },
+                engine.Calls);
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
+    [TestMethod]
+    public void Execute_LoadSgf_MissingFileReturnsErrorBeforeEngineCall()
+    {
+        var engine = new FakeGtpEngine();
+        var result = Execute("loadsgf R:\\TEMP\\USR\\missing-zengtpx-test.sgf", engine);
+
+        Assert.AreEqual("? loadsgf file not found\n\n", result.Response.Format());
+        CollectionAssert.AreEqual(Array.Empty<string>(), engine.Calls);
     }
 
     [TestMethod]
@@ -1380,6 +1444,13 @@ public sealed class GtpSessionTests
     private static GtpExecutionResult Execute(string line)
     {
         return Execute(line, new FakeGtpEngine());
+    }
+
+    private static string WriteTemporarySgf(string content)
+    {
+        var path = Path.Combine(Path.GetTempPath(), $"zengtpx-test-{Guid.NewGuid():N}.sgf");
+        File.WriteAllText(path, content);
+        return path;
     }
 
     private static GtpExecutionResult Execute(string line, IGtpEngine engine)

@@ -56,6 +56,19 @@ play <vertex>
 選用的 `interval` 參數會為了 GUI 相容性接受；但 `genmove_analyze` 目前仍只在搜尋期間輸出單次 analysis snapshot，不是整段落子搜尋過程的長時間串流。
 `genmove_analyze` 會作為 KataGo-style alias 接受，用於未使用 `kata-` 前綴的 GUI 路徑。
 
+## SGF 載入相容性
+
+ZenGTPX 為 GUI 棋盤同步相容性接受 `loadsgf <filename> [moveNumber]`。
+第一版刻意只支援 LizzieYzy Next readboard snapshot 等工具需要的子集：
+
+- `SZ[n]` 棋盤大小；未指定時預設 19。
+- `KM[x]` 貼目；存在時套用。
+- 主線 `B[xy]` / `W[xy]` 落子，包含空值 pass。
+- 基本 `AB[xy]` / `AW[xy]` setup stones。
+- 選用非負 `moveNumber`，只重放前 N 手主線落子。
+
+ZenGTPX 不實作完整 SGF 編輯語義、變化選擇、標記、註解或 SGF 儲存。
+
 ## KataGo-compatible time commands
 
 ZenGTPX 為 GUI 相容性接受 `kata-time_settings` 與 `kata-set-param maxTime`。

@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Text;
 using System.Text.Json;
 using ZenGTPX.Board;
 using ZenGTPX.Config;
@@ -29,6 +30,7 @@ public sealed class GtpSession
         "time_settings",
         "time_left",
         "showboard",
+        "loadsgf",
         "final_score",
         "final_status_list",
         "zengtp_final_score_detail",
@@ -102,6 +104,7 @@ public sealed class GtpSession
                 "time_settings" => TimeSettings(command),
                 "time_left" => TimeLeft(command),
                 "showboard" => ShowBoard(command),
+                "loadsgf" => LoadSgf(command),
                 "final_score" => FinalScore(command),
                 "final_status_list" => FinalStatusList(command),
                 "zengtp_final_score_detail" => FinalScoreDetail(command),
@@ -191,6 +194,86 @@ public sealed class GtpSession
         }
 
         _board.Clear();
+        return Success(command, "");
+    }
+
+    private GtpExecutionResult LoadSgf(GtpCommand command)
+    {
+        if (command.Arguments.Count is < 1 or > 2)
+        {
+            return Error(command, "loadsgf requires filename and optional move number");
+        }
+
+        if (command.Arguments.Count == 2 && !TryParseInteger(command.Arguments[1], out _))
+        {
+            return Error(command, "loadsgf move number must be an integer");
+        }
+
+        var path = command.Arguments[0];
+        if (!File.Exists(path))
+        {
+            return Error(command, "loadsgf file not found");
+        }
+
+        SgfGame game;
+        try
+        {
+            game = ParseSgf(File.ReadAllText(path));
+        }
+        catch (Exception ex) when (ex is ArgumentException or FormatException or IOException)
+        {
+            return Error(command, $"loadsgf failed: {ex.Message}");
+        }
+
+        var moves = game.Moves;
+        if (command.Arguments.Count == 2 && int.TryParse(command.Arguments[1], NumberStyles.Integer, CultureInfo.InvariantCulture, out var moveNumber))
+        {
+            if (moveNumber < 0)
+            {
+                return Error(command, "loadsgf move number must be non-negative");
+            }
+
+            moves = moves.Take(moveNumber).ToArray();
+        }
+
+        StopAnalysis();
+        lock (_engineLock)
+        {
+            _engine.SetBoardSize(game.BoardSize);
+            _engine.ClearBoard();
+            if (game.Komi is { } komi)
+            {
+                _engine.SetKomi(komi);
+            }
+
+            foreach (var stone in game.SetupStones)
+            {
+                if (!_engine.Play(stone.Color, stone.Move))
+                {
+                    return Error(command, "loadsgf failed: illegal setup stone");
+                }
+            }
+
+            foreach (var move in moves)
+            {
+                if (!_engine.Play(move.Color, move.Move))
+                {
+                    return Error(command, "loadsgf failed: illegal move");
+                }
+            }
+        }
+
+        _board.SetBoardSize(game.BoardSize);
+        foreach (var stone in game.SetupStones)
+        {
+            _board.Play(stone.Color, stone.Move);
+        }
+
+        foreach (var move in moves)
+        {
+            _board.Play(move.Color, move.Move);
+        }
+
         return Success(command, "");
     }
 
@@ -1253,6 +1336,150 @@ public sealed class GtpSession
         }
     }
 
+    private static SgfGame ParseSgf(string sgf)
+    {
+        var properties = ReadSgfProperties(sgf);
+        var boardSize = 19;
+        double? komi = null;
+        var setupStones = new List<SgfMove>();
+        var moves = new List<SgfMove>();
+
+        foreach (var property in properties)
+        {
+            if (property.Name == "SZ" && property.Values.Count > 0)
+            {
+                if (!TryParseInteger(property.Values[0], out boardSize))
+                {
+                    throw new FormatException("invalid SZ property");
+                }
+
+                if (boardSize <= 0 || boardSize > 25)
+                {
+                    throw new FormatException("SZ property must be between 1 and 25");
+                }
+            }
+        }
+
+        foreach (var property in properties)
+        {
+            switch (property.Name)
+            {
+                case "KM" when property.Values.Count > 0:
+                    if (!TryParseDouble(property.Values[0], out var parsedKomi))
+                    {
+                        throw new FormatException("invalid KM property");
+                    }
+
+                    komi = parsedKomi;
+                    break;
+                case "AB":
+                    foreach (var value in property.Values)
+                    {
+                        setupStones.Add(new SgfMove(StoneColor.Black, SgfCoordinateToMove(value, boardSize)));
+                    }
+
+                    break;
+                case "AW":
+                    foreach (var value in property.Values)
+                    {
+                        setupStones.Add(new SgfMove(StoneColor.White, SgfCoordinateToMove(value, boardSize)));
+                    }
+
+                    break;
+                case "B" when property.Values.Count > 0:
+                    moves.Add(new SgfMove(StoneColor.Black, SgfCoordinateToMove(property.Values[0], boardSize)));
+                    break;
+                case "W" when property.Values.Count > 0:
+                    moves.Add(new SgfMove(StoneColor.White, SgfCoordinateToMove(property.Values[0], boardSize)));
+                    break;
+            }
+        }
+
+        return new SgfGame(boardSize, komi, setupStones, moves);
+    }
+
+    private static List<SgfProperty> ReadSgfProperties(string sgf)
+    {
+        var properties = new List<SgfProperty>();
+        var index = 0;
+        while (index < sgf.Length)
+        {
+            if (!IsSgfPropertyNameStart(sgf[index]))
+            {
+                index++;
+                continue;
+            }
+
+            var nameStart = index;
+            while (index < sgf.Length && sgf[index] is >= 'A' and <= 'Z')
+            {
+                index++;
+            }
+
+            if (index >= sgf.Length || sgf[index] != '[')
+            {
+                continue;
+            }
+
+            var name = sgf[nameStart..index];
+            var values = new List<string>();
+            while (index < sgf.Length && sgf[index] == '[')
+            {
+                index++;
+                var value = new StringBuilder();
+                while (index < sgf.Length)
+                {
+                    var current = sgf[index++];
+                    if (current == '\\' && index < sgf.Length)
+                    {
+                        value.Append(sgf[index++]);
+                        continue;
+                    }
+
+                    if (current == ']')
+                    {
+                        break;
+                    }
+
+                    value.Append(current);
+                }
+
+                values.Add(value.ToString());
+            }
+
+            properties.Add(new SgfProperty(name, values));
+        }
+
+        return properties;
+    }
+
+    private static bool IsSgfPropertyNameStart(char value)
+    {
+        return value is >= 'A' and <= 'Z';
+    }
+
+    private static GtpMove SgfCoordinateToMove(string value, int boardSize)
+    {
+        if (string.IsNullOrEmpty(value))
+        {
+            return GtpMove.Pass;
+        }
+
+        if (value.Length != 2)
+        {
+            throw new FormatException($"invalid SGF coordinate: {value}");
+        }
+
+        var x = value[0] - 'a';
+        var y = value[1] - 'a';
+        if (x < 0 || x >= boardSize || y < 0 || y >= boardSize)
+        {
+            throw new FormatException($"SGF coordinate is outside board: {value}");
+        }
+
+        return GtpMove.Play(new BoardCoordinate(x, y));
+    }
+
     private string FormatPrincipalVariation(GtpAnalysisMove move)
     {
         return string.IsNullOrWhiteSpace(move.PrincipalVariation)
@@ -1313,4 +1540,14 @@ public sealed class GtpSession
     {
         return new GtpExecutionResult(GtpResponse.Error(command.Id, body), ShouldQuit: false);
     }
+
+    private sealed record SgfGame(
+        int BoardSize,
+        double? Komi,
+        IReadOnlyList<SgfMove> SetupStones,
+        IReadOnlyList<SgfMove> Moves);
+
+    private sealed record SgfProperty(string Name, IReadOnlyList<string> Values);
+
+    private readonly record struct SgfMove(StoneColor Color, GtpMove Move);
 }

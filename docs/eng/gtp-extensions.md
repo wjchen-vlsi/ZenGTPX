@@ -56,6 +56,19 @@ The chosen move is applied to the internal board state, matching `genmove` behav
 The optional `interval` argument is accepted for GUI compatibility, but ZenGTPX currently emits a single final analysis snapshot during `genmove_analyze` rather than a long-running stream throughout the move search.
 `genmove_analyze` is accepted as a KataGo-style alias for GUIs that do not use the `kata-` prefix.
 
+## SGF load compatibility
+
+ZenGTPX accepts `loadsgf <filename> [moveNumber]` for GUI board-sync compatibility.
+The first implementation is intentionally limited to the subset needed by tools such as LizzieYzy Next readboard snapshots:
+
+- `SZ[n]` board size, defaulting to 19.
+- `KM[x]` komi when present.
+- Main-line `B[xy]` / `W[xy]` moves, including empty pass values.
+- Basic `AB[xy]` / `AW[xy]` setup stones.
+- Optional non-negative `moveNumber` to replay only the first N main-line moves.
+
+ZenGTPX does not implement full SGF editing semantics, variation selection, markup, comments, or SGF saving.
+
 ## KataGo-compatible time commands
 
 ZenGTPX accepts `kata-time_settings` and `kata-set-param maxTime` for GUI compatibility.
