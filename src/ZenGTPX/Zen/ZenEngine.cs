@@ -193,7 +193,7 @@ public sealed class ZenEngine : IGtpEngine, IDisposable
         var stopwatch = Stopwatch.StartNew();
         var searchResult = ThinkUntilAnalysisMove(zenColor, Math.Min(maxCandidates, 10), interval, onMoves, cancellationToken);
         stopwatch.Stop();
-        return CompleteGeneratedMove(zenColor, searchResult, stopwatch.Elapsed.TotalSeconds);
+        return CompleteAnalyzedMove(zenColor, searchResult, stopwatch.Elapsed.TotalSeconds);
     }
 
     private GtpMove CompleteGeneratedMove(int zenColor, ZenSearchResult searchResult, double elapsedSeconds)
@@ -237,6 +237,39 @@ public sealed class ZenEngine : IGtpEngine, IDisposable
         }
 
         var coordinate = new BoardCoordinate(generatedMove.X, generatedMove.Y);
+        var move = _native.Play(coordinate.X, coordinate.Y, zenColor)
+            ? GtpMove.Play(coordinate)
+            : Pass(zenColor);
+        LastSearchInfo = CreateSearchInfo(
+            move,
+            topMove,
+            elapsedSeconds,
+            searchResult.StopReason);
+        return move;
+    }
+
+    private GtpMove CompleteAnalyzedMove(int zenColor, ZenSearchResult searchResult, double elapsedSeconds)
+    {
+        var topMove = searchResult.TopMove;
+        if (!IsOnBoard(topMove.X, topMove.Y))
+        {
+            return CompleteGeneratedMove(zenColor, searchResult, elapsedSeconds);
+        }
+
+        var shouldResign = topMove.Winrate >= 0.0f
+            && topMove.Winrate <= 1.0f
+            && topMove.Winrate < _options.ResignThreshold;
+        if (shouldResign)
+        {
+            LastSearchInfo = CreateSearchInfo(
+                GtpMove.Resign,
+                topMove,
+                elapsedSeconds,
+                searchResult.StopReason);
+            return GtpMove.Resign;
+        }
+
+        var coordinate = new BoardCoordinate(topMove.X, topMove.Y);
         var move = _native.Play(coordinate.X, coordinate.Y, zenColor)
             ? GtpMove.Play(coordinate)
             : Pass(zenColor);
