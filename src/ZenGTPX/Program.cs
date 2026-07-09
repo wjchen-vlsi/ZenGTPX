@@ -31,7 +31,11 @@ while (Console.In.ReadLine() is { } line)
         Trace("> " + result.OutputBeforeResponse.TrimEnd());
     }
 
-    Trace("> " + result.Response.Format().TrimEnd());
+    if (!result.SuppressResponse)
+    {
+        Trace("> " + result.Response.Format().TrimEnd());
+    }
+
     if (IsMoveGenerationCommand(command.Name) && engine.LastSearchInfo is { } searchInfo)
     {
         Trace("# " + FormatSearchDiagnostic(searchInfo, engine.BoardSize));
@@ -44,7 +48,11 @@ while (Console.In.ReadLine() is { } line)
             Console.Out.Write(result.OutputBeforeResponse);
         }
 
-        Console.Out.Write(result.Response.Format());
+        if (!result.SuppressResponse)
+        {
+            Console.Out.Write(result.Response.Format());
+        }
+
         Console.Out.Flush();
     }
 

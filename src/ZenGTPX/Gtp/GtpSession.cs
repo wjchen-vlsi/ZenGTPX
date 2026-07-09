@@ -780,7 +780,18 @@ public sealed class GtpSession
             return error;
         }
 
+        if (_writeAnalysisOutput is not null)
+        {
+            _writeAnalysisOutput(GtpResponse.Success(command.Id).Format());
+        }
+
         var move = GenerateMoveAnalyze(parsed.Color, parsed.Interval, FormatLzAnalysis);
+        if (_writeAnalysisOutput is not null)
+        {
+            _writeAnalysisOutput($"play {FormatMove(move)}\n");
+            return new GtpExecutionResult(GtpResponse.Success(command.Id), ShouldQuit: false, SuppressResponse: true);
+        }
+
         return GenMoveAnalyzeSuccess(command, _writeAnalysisOutput is null ? FormatLzAnalysis(SearchInfoAsAnalysisMove(move)) : "", move);
     }
 
@@ -792,7 +803,18 @@ public sealed class GtpSession
             return error;
         }
 
+        if (_writeAnalysisOutput is not null)
+        {
+            _writeAnalysisOutput(GtpResponse.Success(command.Id).Format());
+        }
+
         var move = GenerateMoveAnalyze(parsed.Color, parsed.Interval, FormatKataAnalysis);
+        if (_writeAnalysisOutput is not null)
+        {
+            _writeAnalysisOutput($"play {FormatMove(move)}\n");
+            return new GtpExecutionResult(GtpResponse.Success(command.Id), ShouldQuit: false, SuppressResponse: true);
+        }
+
         return GenMoveAnalyzeSuccess(command, _writeAnalysisOutput is null ? FormatKataAnalysis(SearchInfoAsAnalysisMove(move)) : "", move);
     }
 
@@ -804,7 +826,18 @@ public sealed class GtpSession
             return error;
         }
 
+        if (_writeAnalysisOutput is not null)
+        {
+            _writeAnalysisOutput(GtpResponse.Success(command.Id).Format());
+        }
+
         var move = GenerateMoveAnalyze(parsed.Color, parsed.Interval, FormatKataAnalysis);
+        if (_writeAnalysisOutput is not null)
+        {
+            _writeAnalysisOutput($"play {FormatMove(move)}\n");
+            return new GtpExecutionResult(GtpResponse.Success(command.Id), ShouldQuit: false, SuppressResponse: true);
+        }
+
         return GenMoveAnalyzeSuccess(command, _writeAnalysisOutput is null ? FormatKataAnalysis(SearchInfoAsAnalysisMove(move)) : "", move);
     }
 
