@@ -46,14 +46,14 @@ Current limitations:
 - ZenGTPX does not implement KataGo `analysis` JSON protocol.
 
 `lz-genmove_analyze`, `kata-genmove_analyze`, and `genmove_analyze` are compatibility commands for GUI engine-game mode.
-They search a move like `genmove`, emit one analysis line, then finish the same GTP response with:
+With the normal executable entrypoint, they search a move like `genmove`, emit `info move ...` analysis samples during that same Zen thinking session, then finish the GTP response with:
 
 ```text
 play <vertex>
 ```
 
 The chosen move is applied to the internal board state, matching `genmove` behavior.
-The optional `interval` argument is accepted for GUI compatibility, but ZenGTPX currently emits a single final analysis snapshot during `genmove_analyze` rather than a long-running stream throughout the move search.
+The optional `interval` argument follows the same centisecond semantics as `kata-analyze` / `lz-analyze`.
 `genmove_analyze` is accepted as a KataGo-style alias for GUIs that do not use the `kata-` prefix.
 
 ## SGF load compatibility

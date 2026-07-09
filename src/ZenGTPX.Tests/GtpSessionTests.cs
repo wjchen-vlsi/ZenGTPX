@@ -1,3 +1,4 @@
+using System.Text;
 using ZenGTPX.Gtp;
 using ZenGTPX.Board;
 
@@ -509,6 +510,39 @@ public sealed class GtpSessionTests
             "=\ninfo move Q16 visits 6000 winrate 0.5342 scoreLead 1.0 scoreMean 1.0 prior 0.100 order 0 pv Q16\nplay Q16\n\n",
             result.Response.Format());
         Assert.AreEqual(StoneColor.Black, engine.LastGenMoveColor);
+    }
+
+    [TestMethod]
+    public void Execute_KataGenMoveAnalyze_WithWriterStreamsAnalysisBeforePlayResponse()
+    {
+        var output = new StringBuilder();
+        var engine = new FakeGtpEngine
+        {
+            NextGeneratedMove = GtpMove.Play(new BoardCoordinate(15, 3)),
+            NextSearchInfo = new GtpSearchInfo(GtpMove.Play(new BoardCoordinate(15, 3)), 6000, 0.53421, 1.23456),
+            AnalysisMoves =
+            [
+                new GtpAnalysisMove(
+                    GtpMove.Play(new BoardCoordinate(15, 3)),
+                    1700,
+                    0.53421,
+                    "Q16 D4"),
+                new GtpAnalysisMove(
+                    GtpMove.Play(new BoardCoordinate(3, 15)),
+                    850,
+                    0.498,
+                    "D4 Q16"),
+            ],
+        };
+        var session = new GtpSession(engine, text => output.Append(text));
+
+        var result = Execute("kata-genmove_analyze b 10", session);
+
+        Assert.AreEqual(
+            "info move Q16 visits 1700 winrate 0.5342 scoreLead 1.0 scoreMean 1.0 prior 0.100 order 0 pv Q16 D4 info move D4 visits 850 winrate 0.4980 scoreLead -0.1 scoreMean -0.1 prior 0.080 order 1 pv D4 Q16\n",
+            output.ToString());
+        Assert.AreEqual("=\nplay Q16\n\n", result.Response.Format());
+        CollectionAssert.Contains(engine.Calls, "GenMoveAnalyze:Black:10:100");
     }
 
     [TestMethod]
@@ -1615,6 +1649,22 @@ public sealed class GtpSessionTests
         {
             LastGenMoveColor = color;
             AddCall($"GenMove:{color}");
+            LastSearchInfo = NextSearchInfo;
+            return NextGeneratedMove;
+        }
+
+        public GtpMove GenMoveAnalyze(
+            StoneColor color,
+            int maxCandidates,
+            TimeSpan interval,
+            Action<IReadOnlyList<GtpAnalysisMove>> onMoves,
+            CancellationToken cancellationToken)
+        {
+            LastGenMoveColor = color;
+            LastAnalyzeColor = color;
+            LastAnalysisInterval = interval;
+            AddCall($"GenMoveAnalyze:{color}:{maxCandidates}:{interval.TotalMilliseconds}");
+            onMoves(AnalysisMoves.Take(maxCandidates).ToArray());
             LastSearchInfo = NextSearchInfo;
             return NextGeneratedMove;
         }

@@ -32,6 +32,13 @@ public interface IGtpEngine
 
     GtpMove GenMove(StoneColor color);
 
+    GtpMove GenMoveAnalyze(
+        StoneColor color,
+        int maxCandidates,
+        TimeSpan interval,
+        Action<IReadOnlyList<GtpAnalysisMove>> onMoves,
+        CancellationToken cancellationToken);
+
     IReadOnlyList<GtpAnalysisMove> Analyze(StoneColor color, int maxCandidates, CancellationToken cancellationToken);
 
     void RunAnalysis(

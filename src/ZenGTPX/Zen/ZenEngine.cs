@@ -167,6 +167,37 @@ public sealed class ZenEngine : IGtpEngine, IDisposable
         var stopwatch = Stopwatch.StartNew();
         var searchResult = ThinkUntilTopMove(zenColor);
         stopwatch.Stop();
+        return CompleteGeneratedMove(zenColor, searchResult, stopwatch.Elapsed.TotalSeconds);
+    }
+
+    public GtpMove GenMoveAnalyze(
+        StoneColor color,
+        int maxCandidates,
+        TimeSpan interval,
+        Action<IReadOnlyList<GtpAnalysisMove>> onMoves,
+        CancellationToken cancellationToken)
+    {
+        if (maxCandidates <= 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(maxCandidates), "Analysis candidate count must be positive.");
+        }
+
+        if (interval <= TimeSpan.Zero)
+        {
+            throw new ArgumentOutOfRangeException(nameof(interval), "Analysis interval must be positive.");
+        }
+
+        cancellationToken.ThrowIfCancellationRequested();
+        var zenColor = (int)color;
+        _native.SetNextColor(zenColor);
+        var stopwatch = Stopwatch.StartNew();
+        var searchResult = ThinkUntilAnalysisMove(zenColor, Math.Min(maxCandidates, 10), interval, onMoves, cancellationToken);
+        stopwatch.Stop();
+        return CompleteGeneratedMove(zenColor, searchResult, stopwatch.Elapsed.TotalSeconds);
+    }
+
+    private GtpMove CompleteGeneratedMove(int zenColor, ZenSearchResult searchResult, double elapsedSeconds)
+    {
         var topMove = searchResult.TopMove;
         var generatedMove = _native.ReadGeneratedMove();
 
@@ -175,7 +206,7 @@ public sealed class ZenEngine : IGtpEngine, IDisposable
             LastSearchInfo = CreateSearchInfo(
                 GtpMove.Resign,
                 topMove,
-                stopwatch.Elapsed.TotalSeconds,
+                elapsedSeconds,
                 searchResult.StopReason);
             return GtpMove.Resign;
         }
@@ -186,7 +217,7 @@ public sealed class ZenEngine : IGtpEngine, IDisposable
             LastSearchInfo = CreateSearchInfo(
                 GtpMove.Pass,
                 topMove,
-                stopwatch.Elapsed.TotalSeconds,
+                elapsedSeconds,
                 searchResult.StopReason);
             return GtpMove.Pass;
         }
@@ -200,7 +231,7 @@ public sealed class ZenEngine : IGtpEngine, IDisposable
             LastSearchInfo = CreateSearchInfo(
                 GtpMove.Resign,
                 topMove,
-                stopwatch.Elapsed.TotalSeconds,
+                elapsedSeconds,
                 searchResult.StopReason);
             return GtpMove.Resign;
         }
@@ -212,7 +243,7 @@ public sealed class ZenEngine : IGtpEngine, IDisposable
         LastSearchInfo = CreateSearchInfo(
             move,
             topMove,
-            stopwatch.Elapsed.TotalSeconds,
+            elapsedSeconds,
             searchResult.StopReason);
         return move;
     }
@@ -503,6 +534,64 @@ public sealed class ZenEngine : IGtpEngine, IDisposable
             {
                 Thread.Sleep(100);
                 topMove = _native.GetTopMoveInfo(0);
+                if (!_native.IsThinking)
+                {
+                    stopReason = "nativeStopped";
+                    break;
+                }
+            }
+        }
+        finally
+        {
+            _native.StopThinking();
+        }
+
+        var finalTopMove = topMove.Playouts > 0 ? topMove : _native.GetTopMoveInfo(0);
+        return new ZenSearchResult(finalTopMove, stopReason);
+    }
+
+    private ZenSearchResult ThinkUntilAnalysisMove(
+        int zenColor,
+        int candidateCount,
+        TimeSpan interval,
+        Action<IReadOnlyList<GtpAnalysisMove>> onMoves,
+        CancellationToken cancellationToken)
+    {
+        ZenTopMove topMove = default;
+        var stopReason = "timeout";
+        _native.StartThinking(zenColor);
+
+        try
+        {
+            var deadline = DateTime.UtcNow.AddSeconds(Math.Max(0.1, _maxTime) + 0.5);
+            while (DateTime.UtcNow < deadline)
+            {
+                if (cancellationToken.WaitHandle.WaitOne(interval))
+                {
+                    stopReason = "canceled";
+                    break;
+                }
+
+                var moves = WithPolicyPriors(ReadAnalysisMoves(candidateCount));
+                if (moves.Count > 0)
+                {
+                    onMoves(moves);
+                    if (moves[0].Move.Coordinate is { } coordinate)
+                    {
+                        topMove = new ZenTopMove(
+                            coordinate.X,
+                            coordinate.Y,
+                            moves[0].Playouts,
+                            (float)moves[0].Winrate,
+                            moves[0].PrincipalVariation);
+                    }
+                }
+
+                if (moves.Count > 0 && moves[0].Playouts >= _options.MaxSimulations)
+                {
+                    break;
+                }
+
                 if (!_native.IsThinking)
                 {
                     stopReason = "nativeStopped";

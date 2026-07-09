@@ -780,8 +780,8 @@ public sealed class GtpSession
             return error;
         }
 
-        var move = GenerateMove(parsed.Color);
-        return GenMoveAnalyzeSuccess(command, FormatLzAnalysis(SearchInfoAsAnalysisMove(move)), move);
+        var move = GenerateMoveAnalyze(parsed.Color, parsed.Interval, FormatLzAnalysis);
+        return GenMoveAnalyzeSuccess(command, _writeAnalysisOutput is null ? FormatLzAnalysis(SearchInfoAsAnalysisMove(move)) : "", move);
     }
 
     private GtpExecutionResult KataGenMoveAnalyze(GtpCommand command)
@@ -792,8 +792,8 @@ public sealed class GtpSession
             return error;
         }
 
-        var move = GenerateMove(parsed.Color);
-        return GenMoveAnalyzeSuccess(command, FormatKataAnalysis(SearchInfoAsAnalysisMove(move)), move);
+        var move = GenerateMoveAnalyze(parsed.Color, parsed.Interval, FormatKataAnalysis);
+        return GenMoveAnalyzeSuccess(command, _writeAnalysisOutput is null ? FormatKataAnalysis(SearchInfoAsAnalysisMove(move)) : "", move);
     }
 
     private GtpExecutionResult GenMoveAnalyze(GtpCommand command)
@@ -804,8 +804,8 @@ public sealed class GtpSession
             return error;
         }
 
-        var move = GenerateMove(parsed.Color);
-        return GenMoveAnalyzeSuccess(command, FormatKataAnalysis(SearchInfoAsAnalysisMove(move)), move);
+        var move = GenerateMoveAnalyze(parsed.Color, parsed.Interval, FormatKataAnalysis);
+        return GenMoveAnalyzeSuccess(command, _writeAnalysisOutput is null ? FormatKataAnalysis(SearchInfoAsAnalysisMove(move)) : "", move);
     }
 
     private GtpExecutionResult KataSetParam(GtpCommand command)
@@ -1000,7 +1000,39 @@ public sealed class GtpSession
         return move;
     }
 
-    private (StoneColor Color, GtpExecutionResult? Error) ParseGenMoveAnalyzeArguments(
+    private GtpMove GenerateMoveAnalyze(
+        StoneColor color,
+        int intervalCentiseconds,
+        Func<IReadOnlyList<GtpAnalysisMove>, string> format)
+    {
+        if (_writeAnalysisOutput is null)
+        {
+            return GenerateMove(color);
+        }
+
+        GtpMove move;
+        lock (_engineLock)
+        {
+            move = _engine.GenMoveAnalyze(
+                color,
+                AnalysisCandidateCount,
+                TimeSpan.FromMilliseconds(intervalCentiseconds * 10),
+                moves =>
+                {
+                    var output = format(moves);
+                    if (output.Length > 0)
+                    {
+                        _writeAnalysisOutput(output + "\n");
+                    }
+                },
+                CancellationToken.None);
+        }
+
+        _board.Play(color, move);
+        return move;
+    }
+
+    private (StoneColor Color, int Interval, GtpExecutionResult? Error) ParseGenMoveAnalyzeArguments(
         GtpCommand command,
         string commandName)
     {
@@ -1012,16 +1044,21 @@ public sealed class GtpSession
             index = 1;
         }
 
-        if (command.Arguments.Count > index &&
-            TryParseInteger(command.Arguments[index], out var interval))
+        var interval = DefaultAnalysisIntervalCentiseconds;
+        if (command.Arguments.Count > index)
         {
+            if (!TryParseInteger(command.Arguments[index], out interval))
+            {
+                return (color, interval, Error(command, $"{commandName} interval must be an integer"));
+            }
+
             if (interval <= 0)
             {
-                return (color, Error(command, $"{commandName} interval must be positive"));
+                return (color, interval, Error(command, $"{commandName} interval must be positive"));
             }
         }
 
-        return (color, null);
+        return (color, interval, null);
     }
 
     private IReadOnlyList<GtpAnalysisMove> SearchInfoAsAnalysisMove(GtpMove move)

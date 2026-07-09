@@ -46,14 +46,14 @@ info move Q16 visits 1700 winrate 5342 pv Q16 D4
 - ZenGTPX 不實作 KataGo `analysis` JSON protocol。
 
 `lz-genmove_analyze`、`kata-genmove_analyze` 與 `genmove_analyze` 是 GUI 引擎對局模式的相容性指令。
-它們會像 `genmove` 一樣搜尋一手，輸出一行 analysis 資訊，最後在同一個 GTP response 內以以下格式結束：
+使用一般執行檔入口時，它們會像 `genmove` 一樣搜尋一手，並在同一次 Zen thinking session 期間輸出 `info move ...` analysis 取樣，最後以以下格式結束 GTP response：
 
 ```text
 play <vertex>
 ```
 
 選出的手會套用到內部棋盤狀態，行為與 `genmove` 一致。
-選用的 `interval` 參數會為了 GUI 相容性接受；但 `genmove_analyze` 目前仍只在搜尋期間輸出單次 analysis snapshot，不是整段落子搜尋過程的長時間串流。
+選用的 `interval` 參數與 `kata-analyze` / `lz-analyze` 一樣採 centiseconds 語意。
 `genmove_analyze` 會作為 KataGo-style alias 接受，用於未使用 `kata-` 前綴的 GUI 路徑。
 
 ## SGF 載入相容性
