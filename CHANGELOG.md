@@ -1,6 +1,6 @@
 # CHANGELOG
 
-## Unreleased
+## 0.9.0 - 2026-07-10
 
 ### Added
 - Support `fixed_handicap` and `place_free_handicap` GTP commands with deterministic standard star-point placement.
@@ -15,6 +15,7 @@
 - Normalize numeric argument errors for GTP commands so invalid input returns command-specific responses.
 - Reject negative `time_left` stone counts before forwarding time updates to the engine.
 - Document the version history baseline for ZenGTPX.
+- Add a private one-command release zip script that packages the portable executable, configuration files, a short `README.txt`, and changelog while excluding `Zen.dll`.
 
 ## 0.1.0
 
@@ -25,5 +26,5 @@
 
 ## Planned
 
-### 0.3.0
+### 1.0.0
 - Faster native-search cancellation for `stop`.

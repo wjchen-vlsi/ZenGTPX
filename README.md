@@ -6,11 +6,11 @@ ZenGTPX 是 Zen7 `Zen.dll` 的 Windows x86 GTP Wrapper，主要用途是在 Lizz
 
 > ZenGTPX 不包含 Zen7 或 `Zen.dll`。請自行準備合法取得的 Zen7 `Zen.dll`。
 
-![ZenGTPX 在 LizzieYzy Next 中顯示候選點](docs/assets/lizzieyzy-next-zengtpx-candidates.png)
+![ZenGTPX 在 LizzieYzy Next 中執行對局](docs/assets/zengtpx-game-screen.png)
 
 ## 下載與放置檔案
 
-從 GitHub Release 下載並解壓縮後，請把 `Zen.dll` 放到 `ZenGTPX.exe` 同一個資料夾：
+從 GitHub Release 下載 `ZenGTPX-v*-win-x86.zip` 並解壓縮。zip 內含簡短 `README.txt`、設定檔與 `ZenGTPX.exe`；解壓縮後請把 `Zen.dll` 放到 `ZenGTPX.exe` 同一個資料夾：
 
 ```text
 ZenGTPX/
@@ -22,7 +22,7 @@ ZenGTPX/
 
 一般使用時，保留 `zen7.cfg` 即可。`zen7_zh-TW.cfg` 是繁體中文註解版設定檔，可作為參考或改名使用。
 
-建議截圖：可補一張 Windows 檔案總管畫面，顯示 `ZenGTPX.exe`、`Zen.dll`、`zen7.cfg` 放在同一個資料夾。
+![ZenGTPX 所在目錄](docs/assets/zengtpx-folder-layout.png)
 
 ## 在 LizzieYzy Next 加入引擎
 
@@ -43,43 +43,54 @@ Arguments: 通常留空
 --config zen7.cfg
 ```
 
-![LizzieYzy Next 的 ZenGTPX 引擎設定](docs/assets/lizzieyzy-next-zengtpx-engine-setup.png)
+![LizzieYzy Next 的 ZenGTPX 引擎設定](docs/assets/lizzieyzy-next-engine-settings.png)
 
 ## 人機對局
 
-在人機對局中，把其中一方設為 `ZenGTPX`，另一方設為人類玩家即可。
-
-常見設定：
+基本設定方式：
 
 ```text
 Black: Human 或 ZenGTPX
 White: ZenGTPX 或 Human
 Board size: 19
-Komi: 依規則設定
+Komi: 依使用規則設定
 Handicap: 視需要設定
 ```
 
-![LizzieYzy Next 中 ZenGTPX 與人類玩家對局](docs/assets/lizzieyzy-next-zengtpx-to-human.png)
+開始對局後，LizzieYzy Next 會透過 GTP 指令將人類落子傳送給 ZenGTPX，並取得 Zen7 的回應落子。
+
+若希望降低或提高 Zen7 棋力，可修改 `zen7.cfg`：
+
+```cfg
+mode = rank
+rankPreset = 9d
+```
+
+可使用的段位範圍：
+
+```text
+6k, 5k, 4k, 3k, 2k, 1k,
+1d, 2d, 3d, 4d, 5d, 6d, 7d, 8d, 9d
+```
+
+![LizzieYzy Next 中 ZenGTPX 與人類玩家對局](docs/assets/lizzieyzy-next-human-vs-zengtpx.png)
 
 ## 引擎對局
 
-ZenGTPX 也可以和其他 GTP Engine 對局，例如 KataGo。
-
-範例：
+ZenGTPX 也可以在 LizzieYzy Next 中與另一個 GTP 引擎進行自動對局，例如：
 
 ```text
 Black: ZenGTPX
 White: KataGo
 ```
 
-或反過來：
+設定時需注意：
 
-```text
-Black: KataGo
-White: ZenGTPX
-```
-
-設定時請確認雙方棋盤大小、貼目、讓子與時間設定一致。
+- ZenGTPX 應使用一般 GTP Engine 設定。
+- 對手引擎應依該引擎本身的方式加入 LizzieYzy Next。
+- 雙方的棋盤大小、貼目與讓子條件應保持一致。
+- 若使用時間控制，建議先從較簡單且寬鬆的設定開始測試。
+- ZenGTPX 已支援 LizzieYzy Next 引擎對局所需的 `lz-genmove_analyze`、`kata-genmove_analyze` 與 `genmove_analyze` 指令。
 
 ![LizzieYzy Next 中設定 ZenGTPX 與其他引擎對局](docs/assets/lizzieyzy-next-engine-to-engine.png)
 

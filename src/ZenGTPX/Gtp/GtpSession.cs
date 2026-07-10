@@ -89,7 +89,7 @@ public sealed class GtpSession
             {
                 "protocol_version" => Success(command, "2"),
                 "name" => Success(command, _engine.GtpName),
-                "version" => Success(command, "0.1.0"),
+                "version" => Success(command, "0.9.0"),
                 "list_commands" => Success(command, string.Join('\n', Commands)),
                 "known_command" => KnownCommand(command),
                 "boardsize" => BoardSize(command),
