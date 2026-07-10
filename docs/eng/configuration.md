@@ -76,9 +76,10 @@ zenDll = Zen.dll
 gtpName = KataGo
 tracePath = gtp_logs/zengtpx-trace-{timestamp}-{pid}.log
 boardSize = 19
-komi = 7.5
+komi = 0.5
 handicap = 0
-threads = 4
+finalScoreRule = chinese
+threads = 8
 resignThreshold = 0.1
 ```
 
@@ -89,9 +90,9 @@ Recommended ranges:
 | `gtpName` | non-empty string | `KataGo` for LizzieYzy Next multi-candidate display; `ZenGTPX` for generic GTP scripts |
 | `tracePath` | path or empty | Keep the development default to capture GUI GTP traces; set empty to disable |
 | `boardSize` | `1` to `25` | `19` |
-| `komi` | any number | `6.5` or `7.5` |
+| `komi` | any number | `0.5` for Chinese-rule online games; `6.5` or `7.5` when your GUI/ruleset requires standard komi |
 | `handicap` | `0` or greater | `0` |
-| `finalScoreRule` | `japanese`, `territory`, `chinese`, or `area` | `japanese` for Zen7-like play, `area` for Chinese scoring |
+| `finalScoreRule` | `japanese`, `territory`, `chinese`, or `area` | `chinese` for the packaged template; `japanese` for Zen7-like territory scoring |
 | `threads` | positive integer | `1-4` conservative, `8` on 8-core CPUs, `10-12` for stronger play |
 | `resignThreshold` | `0.0` to `1.0` | `0.03-0.10` |
 

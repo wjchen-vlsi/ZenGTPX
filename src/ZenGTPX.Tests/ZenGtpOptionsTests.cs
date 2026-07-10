@@ -148,9 +148,9 @@ public sealed class ZenGtpOptionsTests
         Assert.AreEqual("rank", options.Mode);
         Assert.AreEqual("9d", options.RankPreset);
         Assert.AreEqual(19, options.BoardSize);
-        Assert.AreEqual(7.5, options.Komi);
+        Assert.AreEqual(0.5, options.Komi);
         Assert.AreEqual(0, options.Handicap);
-        Assert.AreEqual("japanese", options.FinalScoreRule);
+        Assert.AreEqual("chinese", options.FinalScoreRule);
         Assert.AreEqual(4, options.Threads);
         Assert.AreEqual(60.0, options.MaxTimeSeconds);
         Assert.AreEqual(6000, options.MaxSimulations);
@@ -174,9 +174,9 @@ public sealed class ZenGtpOptionsTests
         Assert.AreEqual("rank", options.Mode);
         Assert.AreEqual("9d", options.RankPreset);
         Assert.AreEqual(19, options.BoardSize);
-        Assert.AreEqual(7.5, options.Komi);
+        Assert.AreEqual(0.5, options.Komi);
         Assert.AreEqual(0, options.Handicap);
-        Assert.AreEqual("japanese", options.FinalScoreRule);
+        Assert.AreEqual("chinese", options.FinalScoreRule);
         Assert.AreEqual(4, options.Threads);
         Assert.AreEqual(60.0, options.MaxTimeSeconds);
         Assert.AreEqual(6000, options.MaxSimulations);

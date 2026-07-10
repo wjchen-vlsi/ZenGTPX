@@ -36,5 +36,5 @@ Arguments:
 - 已支援 `lz-genmove_analyze` / `kata-genmove_analyze` / `genmove_analyze`，供 LizzieYzy Next 引擎對局模式取得落子。
 - 若要顯示多候選點，`zen7.cfg` 建議保持 `gtpName = KataGo`。這只影響 GTP `name` 回應，用於 LizzieYzy Next 的 KataGo-compatible 顯示路徑。
 - 不要將 ZenGTPX 設為 KataGo analysis JSON engine；ZenGTPX 不支援 `katago analysis` JSON protocol。
-- `final_score` 依 `finalScoreRule` 使用 ZenGTP.py 相容公式計算；預設 `japanese`，可改 `chinese` / `area`。結果仍依賴 Zen territory statistics 的死子判斷。
+- `final_score` 依 `finalScoreRule` 使用 ZenGTP.py 相容公式計算；發行範本預設 `chinese`，可改 `japanese` / `territory`。結果仍依賴 Zen territory statistics 的死子判斷。
 - `Zen.dll` 必須由使用者自行合法提供。

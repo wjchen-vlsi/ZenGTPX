@@ -76,9 +76,10 @@ zenDll = Zen.dll
 gtpName = KataGo
 tracePath = gtp_logs/zengtpx-trace-{timestamp}-{pid}.log
 boardSize = 19
-komi = 7.5
+komi = 0.5
 handicap = 0
-threads = 4
+finalScoreRule = chinese
+threads = 8
 resignThreshold = 0.1
 ```
 
@@ -89,9 +90,9 @@ resignThreshold = 0.1
 | `gtpName` | 非空字串 | LizzieYzy Next 多候選點顯示建議 `KataGo`；一般 GTP scripts 可用 `ZenGTPX` |
 | `tracePath` | 路徑或留空 | 開發期保留預設值以自動記錄 GUI GTP trace；留空可停用 |
 | `boardSize` | `1` to `25` | `19` |
-| `komi` | 任意數值 | `6.5` 或 `7.5` |
+| `komi` | 任意數值 | 中國規則網路對局預設 `0.5`；若 GUI / 規則設定需要標準貼目，可用 `6.5` 或 `7.5` |
 | `handicap` | `0` 或更大 | `0` |
-| `finalScoreRule` | `japanese`, `territory`, `chinese`, 或 `area` | 類 Zen7 對局用 `japanese`；中國規則計分用 `area` |
+| `finalScoreRule` | `japanese`, `territory`, `chinese`, 或 `area` | 發行範本預設 `chinese`；類 Zen7 territory scoring 可用 `japanese` |
 | `threads` | 正整數 | 保守值 `1-4`，8 核心 CPU 可用 `8`，較強棋力可測 `10-12` |
 | `resignThreshold` | `0.0` to `1.0` | `0.03-0.10` |
 
