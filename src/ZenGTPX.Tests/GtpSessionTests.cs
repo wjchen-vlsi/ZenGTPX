@@ -1174,7 +1174,7 @@ public sealed class GtpSessionTests
     }
 
     [TestMethod]
-    public void Execute_KataTimeSettingsNone_IgnoresSubsequentMaxTime()
+    public void Execute_KataTimeSettingsNone_AllowsExplicitMaxTime()
     {
         var engine = new FakeGtpEngine();
         var session = new GtpSession(engine);
@@ -1186,7 +1186,8 @@ public sealed class GtpSessionTests
         Assert.AreEqual("=\n\n", none.Response.Format());
         Assert.AreEqual("=\n\n", maxTime.Response.Format());
         Assert.AreEqual("= 10\n\n", getParam.Response.Format());
-        CollectionAssert.AreEqual(Array.Empty<string>(), engine.Calls);
+        Assert.AreEqual(10.0, engine.MaxTime);
+        CollectionAssert.AreEqual(new[] { "SetMaxTime:10" }, engine.Calls);
     }
 
     [TestMethod]

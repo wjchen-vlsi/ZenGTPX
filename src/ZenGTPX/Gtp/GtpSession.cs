@@ -852,7 +852,6 @@ public sealed class GtpSession
         var value = command.Arguments[1];
         _kataParameters[name] = value;
         if (name.Equals("maxTime", StringComparison.Ordinal) &&
-            !_ignoreKataMaxTime &&
             double.TryParse(value, CultureInfo.InvariantCulture, out var maxTime))
         {
             lock (_engineLock)
