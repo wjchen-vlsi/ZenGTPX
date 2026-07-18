@@ -9,7 +9,7 @@ namespace ZenGTPX.Zen;
 public sealed class ZenEngine : IGtpEngine, IDisposable
 {
     private readonly ZenNative _native;
-    private readonly ZenGtpOptions _options;
+    private ZenGtpOptions _options;
     private int _boardSize;
     private double _komi;
     private double _maxTime;
@@ -61,6 +61,14 @@ public sealed class ZenEngine : IGtpEngine, IDisposable
 
     public string FinalScoreRule => _finalScoreRule;
 
+    public ZenGtpOptions CurrentOptions => _options with
+    {
+        BoardSize = _boardSize,
+        Komi = _komi,
+        MaxTimeSeconds = _maxTime,
+        FinalScoreRule = _finalScoreRule,
+    };
+
     public GtpSearchInfo? LastSearchInfo { get; private set; }
 
     public void SetBoardSize(int boardSize)
@@ -101,6 +109,7 @@ public sealed class ZenEngine : IGtpEngine, IDisposable
 
         _native.SetMaxTime((float)seconds);
         _maxTime = seconds;
+        _options = _options with { MaxTimeSeconds = seconds };
     }
 
     public void SetTimeSettings(double mainTime, double byoyomiTime, int periods)
@@ -140,6 +149,18 @@ public sealed class ZenEngine : IGtpEngine, IDisposable
         }
 
         _finalScoreRule = rule;
+        _options = _options with { FinalScoreRule = rule };
+    }
+
+    public void ApplyConfiguration(ZenGtpOptions options)
+    {
+        options.Validate();
+        _native.SetNumberOfThreads(options.Threads);
+        ApplySearchSettings(_native, options);
+        _options = options;
+        _maxTime = options.MaxTimeSeconds;
+        _finalScoreRule = options.FinalScoreRule;
+        LastSearchInfo = null;
     }
 
     public bool Play(StoneColor color, GtpMove move)

@@ -301,6 +301,37 @@ public sealed class ZenGtpOptionsTests
         Assert.AreEqual("boardSize must be between 1 and 25.", exception.Message);
     }
 
+    [DataTestMethod]
+    [DataRow(-1)]
+    [DataRow(4)]
+    public void Validate_RejectsInvalidPnLevel(int value)
+    {
+        var options = new ZenGtpOptions { PnLevel = value };
+
+        var exception = Assert.ThrowsException<InvalidOperationException>(options.Validate);
+        Assert.AreEqual("pnLevel must be between 0 and 3.", exception.Message);
+    }
+
+    [TestMethod]
+    public void Validate_RejectsNegativePnWeight()
+    {
+        var options = new ZenGtpOptions { PnWeight = -0.1 };
+
+        var exception = Assert.ThrowsException<InvalidOperationException>(options.Validate);
+        Assert.AreEqual("pnWeight must be a finite non-negative number.", exception.Message);
+    }
+
+    [DataTestMethod]
+    [DataRow(-0.1)]
+    [DataRow(1.1)]
+    public void Validate_RejectsInvalidVnMixRate(double value)
+    {
+        var options = new ZenGtpOptions { VnMixRate = value };
+
+        var exception = Assert.ThrowsException<InvalidOperationException>(options.Validate);
+        Assert.AreEqual("vnMixRate must be between 0 and 1.", exception.Message);
+    }
+
     private static string WriteTempConfig(string text, string extension = ".json")
     {
         var path = Path.Combine(Path.GetTempPath(), $"zengtpx-test-{Guid.NewGuid():N}{extension}");

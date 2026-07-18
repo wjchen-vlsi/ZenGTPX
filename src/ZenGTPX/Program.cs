@@ -13,7 +13,11 @@ if (startup is null)
 using var engine = startup.Value.Engine;
 var outputLock = new object();
 using var trace = CreateTraceWriter(startup.Value.Options, AppContext.BaseDirectory);
-var session = new GtpSession(engine, WriteAnalysisOutput);
+var configuration = new ZenConfigurationService(
+    startup.Value.Options,
+    engine.ApplyConfiguration,
+    () => engine.CurrentOptions);
+var session = new GtpSession(engine, WriteAnalysisOutput, configuration);
 
 while (Console.In.ReadLine() is { } line)
 {

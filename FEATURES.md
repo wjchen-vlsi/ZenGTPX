@@ -12,6 +12,7 @@ ZenGTPX 是 Zen7 `Zen.dll` 的 Windows x86 GTP Engine Wrapper，主要用於在 
 - 支援 ZenGTPX 與其他 GTP Engine 自動對局。
 - 支援透過 LizzieYzy Next 的 ReadBoard / Fox 同步機制進行網路棋盤同步對局。
 - 支援 `rank`、`fixed-time` 與 `advanced` 棋力設定模式。
+- 支援 Configuration Protocol v1，讓 GUI 自動發現、查詢並在不中斷對局狀態下套用每個 engine instance 的配置 profile。
 - 提供英文與繁體中文設定檔範本。
 - 提供搜尋、policy、territory 與 final-score 檢查用的診斷 GTP commands。
 - 提供 LizzieYzy Next 所需的相容命令，包含 `kata-analyze`、`lz-analyze`、`kata-genmove_analyze`、`loadsgf`，以及部分 KataGo-style parameter/rules commands。
@@ -27,4 +28,4 @@ ZenGTPX 是 Zen7 `Zen.dll` 的 Windows x86 GTP Engine Wrapper，主要用於在 
 
 ## 發行狀態
 
-`v0.9.0` 建議作為第一個公開 release candidate。核心 LizzieYzy Next runtime 模式已完成驗證，但正式公開後仍可能依使用者回饋進行相容性修正，再進入 `v1.0.0`。
+`v0.96` 已完成 Configuration Protocol v1 的引擎端實作與本機驗證，可交由 LizzieYzy Next 進行整合驗收；後續將以小版本持續補強，穩定後再推進至 `v1.x`。

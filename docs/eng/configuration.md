@@ -2,6 +2,8 @@
 
 ZenGTPX uses `zen7.cfg` as the primary configuration file.
 
+GUI clients can override the ten play-strength and scoring profile fields for the current process through [Configuration Protocol v1](./configuration-protocol.md). Protocol save operations are client-owned and never rewrite this file.
+
 ## File Location
 
 Place the configuration file next to `ZenGTPX.exe`:

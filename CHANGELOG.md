@@ -1,5 +1,17 @@
 # CHANGELOG
 
+## 0.96 - 2026-07-18
+
+### Added
+- Add Configuration Protocol v1 commands for capability discovery, schema and effective-value queries, atomic batch updates, client-owned save snapshots, and reset operations.
+- Expose machine-readable JSON success and error payloads for GUI integration.
+- Support process-local, runtime configuration of rank, fixed-time, advanced strength, threads, scoring rule, and resign threshold without changing the board or move history.
+- Add unit coverage for schema metadata, mode-derived effective values, validation, rollback, save/reset semantics, multiple engine-instance isolation, and GTP discovery.
+
+### Changed
+- Validate `pnLevel`, `pnWeight`, and `vnMixRate` before startup or runtime application.
+- Correct the `pnWeight` and `vnMixRate` range comments in the default configuration template.
+
 ## 0.9.0 - 2026-07-10
 
 ### Added

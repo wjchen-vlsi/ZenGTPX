@@ -1,6 +1,8 @@
 using System.Text;
+using System.Text.Json;
 using ZenGTPX.Gtp;
 using ZenGTPX.Board;
+using ZenGTPX.Config;
 
 namespace ZenGTPX.Tests;
 
@@ -14,6 +16,14 @@ public sealed class GtpSessionTests
 
         Assert.AreEqual("= 2\n\n", result.Response.Format());
         Assert.IsFalse(result.ShouldQuit);
+    }
+
+    [TestMethod]
+    public void Execute_ApplicationVersion()
+    {
+        var result = Execute("version");
+
+        Assert.AreEqual("= 0.96\n\n", result.Response.Format());
     }
 
     [TestMethod]
@@ -1476,6 +1486,115 @@ public sealed class GtpSessionTests
         Assert.AreEqual("? zengtp_final_score_detail does not accept arguments\n\n", result.Response.Format());
     }
 
+    [TestMethod]
+    public void Execute_ConfigurationCommandsAreNotAdvertisedWithoutService()
+    {
+        var known = Execute("known_command zengtp_config_schema");
+        var direct = Execute("zengtp_config_schema");
+
+        Assert.AreEqual("= false\n\n", known.Response.Format());
+        Assert.AreEqual("? unknown command\n\n", direct.Response.Format());
+    }
+
+    [TestMethod]
+    public void Execute_ConfigurationCommandsAreDiscoverableWithService()
+    {
+        var session = CreateConfiguredSession(out _);
+
+        var known = Execute("known_command zengtp_config_schema", session);
+        var commands = Execute("list_commands", session);
+
+        Assert.AreEqual("= true\n\n", known.Response.Format());
+        foreach (var command in ZenConfigurationService.Commands)
+        {
+            CollectionAssert.Contains(commands.Response.Body.Split('\n'), command);
+        }
+    }
+
+    [TestMethod]
+    public void Execute_ConfigurationSetAppliesAtomicJsonBatch()
+    {
+        var session = CreateConfiguredSession(out var applied);
+
+        var result = Execute("""zengtp_config_set {"mode":"fixed-time","maxTimeSeconds":5,"threads":8}""", session);
+
+        Assert.IsTrue(result.Response.IsSuccess);
+        Assert.AreEqual(1, applied.Count);
+        Assert.AreEqual("fixed-time", applied[0].Mode);
+        Assert.AreEqual(5.0, applied[0].MaxTimeSeconds);
+        Assert.AreEqual(8, applied[0].Threads);
+        using var document = JsonDocument.Parse(result.Response.Body);
+        Assert.AreEqual("set", document.RootElement.GetProperty("operation").GetString());
+    }
+
+    [TestMethod]
+    public void Execute_ConfigurationSetReturnsMachineReadableError()
+    {
+        var session = CreateConfiguredSession(out var applied);
+
+        var result = Execute("""zengtp_config_set {"threads":0}""", session);
+
+        Assert.IsFalse(result.Response.IsSuccess);
+        Assert.AreEqual(0, applied.Count);
+        using var document = JsonDocument.Parse(result.Response.Body);
+        var error = document.RootElement.GetProperty("error");
+        Assert.AreEqual("invalid_value", error.GetProperty("code").GetString());
+        Assert.AreEqual("threads", error.GetProperty("parameter").GetString());
+    }
+
+    [TestMethod]
+    public void Execute_ConfigurationSaveAndResetUseClientOwnedSnapshot()
+    {
+        var session = CreateConfiguredSession(out var applied);
+
+        Execute("""zengtp_config_set {"rankPreset":"6d"}""", session);
+        var save = Execute("zengtp_config_save", session);
+        Execute("""zengtp_config_set {"rankPreset":"3d"}""", session);
+        var reset = Execute("zengtp_config_reset saved", session);
+
+        using var saved = JsonDocument.Parse(save.Response.Body);
+        Assert.AreEqual("client", saved.RootElement.GetProperty("persistenceOwner").GetString());
+        Assert.AreEqual("6d", saved.RootElement.GetProperty("profile").GetProperty("rankPreset").GetString());
+        using var resetDocument = JsonDocument.Parse(reset.Response.Body);
+        Assert.AreEqual("6d", resetDocument.RootElement.GetProperty("state").GetProperty("selected").GetProperty("rankPreset").GetString());
+        Assert.AreEqual("6d", applied[^1].RankPreset);
+    }
+
+    [TestMethod]
+    public void Execute_ConfigurationSetDoesNotChangeBoardOrMoveHistory()
+    {
+        var session = CreateConfiguredSession(out _);
+        Execute("play b D4", session);
+
+        var set = Execute("""zengtp_config_set {"mode":"advanced","maxTimeSeconds":1,"maxSimulations":100,"threads":1}""", session);
+        var board = Execute("showboard", session);
+        var undo = Execute("undo", session);
+        var emptyBoard = Execute("showboard", session);
+
+        Assert.IsTrue(set.Response.IsSuccess);
+        StringAssert.Contains(board.Response.Body, " 4 . . . X . . . . . . . . . . . . . . . 4");
+        Assert.IsTrue(undo.Response.IsSuccess);
+        Assert.IsFalse(emptyBoard.Response.Body.Contains('X'));
+    }
+
+    [DataTestMethod]
+    [DataRow("zengtp_config_version extra")]
+    [DataRow("zengtp_config_schema extra")]
+    [DataRow("zengtp_config_get extra")]
+    [DataRow("zengtp_config_save extra")]
+    [DataRow("zengtp_config_reset saved extra")]
+    [DataRow("zengtp_config_set")]
+    public void Execute_ConfigurationInvalidArgumentsReturnProtocolError(string command)
+    {
+        var session = CreateConfiguredSession(out _);
+
+        var result = Execute(command, session);
+
+        Assert.IsFalse(result.Response.IsSuccess);
+        using var document = JsonDocument.Parse(result.Response.Body);
+        Assert.AreEqual("invalid_arguments", document.RootElement.GetProperty("error").GetProperty("code").GetString());
+    }
+
     private static GtpExecutionResult Execute(string line)
     {
         return Execute(line, new FakeGtpEngine());
@@ -1500,6 +1619,14 @@ public sealed class GtpSessionTests
         var command = GtpCommandParser.Parse(line);
         Assert.IsNotNull(command);
         return session.Execute(command);
+    }
+
+    private static GtpSession CreateConfiguredSession(out List<ZenGtpOptions> applied)
+    {
+        applied = [];
+        var options = ZenGtpOptionsLoader.Load([], Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N")));
+        var configuration = new ZenConfigurationService(options, applied.Add);
+        return new GtpSession(new FakeGtpEngine(), configuration: configuration);
     }
 
     private sealed class FakeGtpEngine : IGtpEngine

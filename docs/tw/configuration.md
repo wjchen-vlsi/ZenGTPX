@@ -2,6 +2,8 @@
 
 ZenGTPX 以 `zen7.cfg` 作為主要設定檔。
 
+GUI client 可透過 [Configuration Protocol v1](./configuration-protocol.md) 覆蓋目前 process 的十個棋力／規則 profile 欄位。協議的 save 由 client 負責，不會回寫此設定檔。
+
 ## 檔案位置
 
 請將設定檔放在 `ZenGTPX.exe` 同一層：

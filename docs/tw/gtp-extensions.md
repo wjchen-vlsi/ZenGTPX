@@ -1,5 +1,7 @@
 # ZenGTPX GTP 擴充指令
 
+ZenGTPX 0.96 的配置命令另見 [Configuration Protocol v1](./configuration-protocol.md)。這些命令是透過 `list_commands` 發現的可選 JSON 擴充，不取代下列 KataGo 相容命令。
+
 本文件說明 ZenGTPX 提供給 scripts 與診斷用途的專屬 GTP 指令。
 這些指令不是 GTP v2 的一部分，也不應被視為 Lizzie 或 KataGo analysis protocol。
 

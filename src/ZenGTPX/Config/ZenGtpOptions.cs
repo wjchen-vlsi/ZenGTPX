@@ -76,6 +76,11 @@ public sealed record ZenGtpOptions
             throw new InvalidOperationException("maxTimeSeconds must not be negative.");
         }
 
+        if (!double.IsFinite(MaxTimeSeconds))
+        {
+            throw new InvalidOperationException("maxTimeSeconds must be finite.");
+        }
+
         if (MaxSimulations <= 0)
         {
             throw new InvalidOperationException("maxSimulations must be positive.");
@@ -84,6 +89,26 @@ public sealed record ZenGtpOptions
         if (ResignThreshold < 0 || ResignThreshold > 1)
         {
             throw new InvalidOperationException("resignThreshold must be between 0 and 1.");
+        }
+
+        if (!double.IsFinite(ResignThreshold))
+        {
+            throw new InvalidOperationException("resignThreshold must be finite.");
+        }
+
+        if (PnLevel < 0 || PnLevel > 3)
+        {
+            throw new InvalidOperationException("pnLevel must be between 0 and 3.");
+        }
+
+        if (!double.IsFinite(PnWeight) || PnWeight < 0)
+        {
+            throw new InvalidOperationException("pnWeight must be a finite non-negative number.");
+        }
+
+        if (!double.IsFinite(VnMixRate) || VnMixRate < 0 || VnMixRate > 1)
+        {
+            throw new InvalidOperationException("vnMixRate must be between 0 and 1.");
         }
     }
 
@@ -222,7 +247,7 @@ public static class ZenGtpOptionsLoader
 
     private static ZenGtpOptions ApplyCommandLineOverrides(ZenGtpOptions options, string[] args)
     {
-        var normalized = options.NormalizeAliases().ApplyModeDefaults();
+        var normalized = ZenGtpOptionsResolver.ApplyModeDefaults(options.NormalizeAliases());
         var overridden = normalized with
         {
             Mode = GetArgumentValue(args, "--mode") ?? normalized.Mode,
@@ -243,7 +268,7 @@ public static class ZenGtpOptionsLoader
             VnMixRate = GetDoubleArgument(args, "--vnMixRate") ?? normalized.VnMixRate,
         };
 
-        return overridden.ApplyModeDefaults().ApplyAdvancedCommandLineOverrides(args).ValidateAndReturn();
+        return ZenGtpOptionsResolver.ApplyModeDefaults(overridden).ApplyAdvancedCommandLineOverrides(args).ValidateAndReturn();
     }
 
     private static ZenGtpOptions ApplyAdvancedCommandLineOverrides(this ZenGtpOptions options, string[] args)
@@ -338,7 +363,11 @@ public static class ZenGtpOptionsLoader
             : options with { MaxTimeSeconds = options.MaxTime.Value };
     }
 
-    private static ZenGtpOptions ApplyModeDefaults(this ZenGtpOptions options)
+}
+
+internal static class ZenGtpOptionsResolver
+{
+    public static ZenGtpOptions ApplyModeDefaults(ZenGtpOptions options)
     {
         if (options.Mode.Equals("advanced", StringComparison.OrdinalIgnoreCase))
         {
@@ -415,4 +444,8 @@ internal static class RankPresetTable
 
         throw new InvalidOperationException("rankPreset must be one of: 6k, 5k, 4k, 3k, 2k, 1k, 1d, 2d, 3d, 4d, 5d, 6d, 7d, 8d, 9d.");
     }
+
+    public static IReadOnlyList<string> Names => Presets.Keys.ToArray();
+
+    public static bool Contains(string name) => Presets.ContainsKey(name);
 }

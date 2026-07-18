@@ -119,6 +119,14 @@ maxTimeSeconds = 30
 
 完整設定請看 [設定檔說明](docs/tw/configuration.md)。
 
+## Configuration Protocol
+
+ZenGTPX v0.96 新增可自動發現的 Configuration Protocol v1，供 LizzieYzy Next 或其他 GTP client 查詢配置 schema、套用棋力 profile，並取得實際生效值。
+
+此功能是可選的，不影響既有普通 GTP 對局、分析及 ReadBoard 使用方式。目前尚未整合此協議的 GUI，仍可繼續使用 `zen7.cfg` 或啟動參數設定棋力。
+
+完整接口與整合方式請看 [Configuration Protocol v1](docs/tw/configuration-protocol.md)。
+
 ## 網路棋盤同步
 
 LizzieYzy Next 的 ReadBoard / 同步棋盤功能可搭配 ZenGTPX 使用，例如在野狐圍棋對局時，由 LizzieYzy Next 讀取棋盤，再由 ZenGTPX 負責產生落子。
@@ -166,6 +174,7 @@ zenDll = Zen.dll
 - [功能說明](FEATURES.md)
 - [LizzieYzy Next 設定](docs/tw/lizzieyzy-next.md)
 - [設定檔說明](docs/tw/configuration.md)
+- [Configuration Protocol v1](docs/tw/configuration-protocol.md)
 - [GTP 相容命令](docs/tw/gtp-extensions.md)
 
 ## 注意事項

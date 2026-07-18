@@ -1,5 +1,7 @@
 # ZenGTPX GTP Extensions
 
+ZenGTPX 0.96 configuration commands are documented separately in [Configuration Protocol v1](./configuration-protocol.md). They are optional, JSON-based commands discovered through `list_commands`; they do not replace the KataGo-compatible commands below.
+
 This document describes ZenGTPX-specific GTP commands for scripts and diagnostics.
 These commands are not part of GTP v2 and should not be treated as Lizzie or KataGo analysis protocols.
 

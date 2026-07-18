@@ -11,7 +11,7 @@ public sealed class GtpSession
     private const int AnalysisCandidateCount = 10;
     private const int DefaultAnalysisIntervalCentiseconds = 100;
 
-    private static readonly string[] Commands =
+    private static readonly string[] BaseCommands =
     [
         "protocol_version",
         "name",
@@ -55,7 +55,6 @@ public sealed class GtpSession
         "quit",
     ];
 
-    private static readonly HashSet<string> KnownCommands = new(Commands, StringComparer.Ordinal);
     private readonly Dictionary<string, string> _kataParameters = new(StringComparer.Ordinal)
     {
         ["analysisWideRootNoise"] = "0.04",
@@ -69,15 +68,26 @@ public sealed class GtpSession
     private readonly BoardState _board;
     private readonly object _engineLock = new();
     private readonly Action<string>? _writeAnalysisOutput;
+    private readonly ZenConfigurationService? _configuration;
+    private readonly string[] _commands;
+    private readonly HashSet<string> _knownCommands;
     private CancellationTokenSource? _analysisCancellation;
     private Thread? _analysisThread;
     private bool _ignoreKataMaxTime;
 
-    public GtpSession(IGtpEngine engine, Action<string>? writeAnalysisOutput = null)
+    public GtpSession(
+        IGtpEngine engine,
+        Action<string>? writeAnalysisOutput = null,
+        ZenConfigurationService? configuration = null)
     {
         _engine = engine;
         _board = new BoardState(engine.BoardSize);
         _writeAnalysisOutput = writeAnalysisOutput;
+        _configuration = configuration;
+        _commands = configuration is null
+            ? BaseCommands
+            : [.. BaseCommands[..^1], .. ZenConfigurationService.Commands, BaseCommands[^1]];
+        _knownCommands = new HashSet<string>(_commands, StringComparer.Ordinal);
     }
 
     public GtpExecutionResult Execute(GtpCommand command)
@@ -89,8 +99,8 @@ public sealed class GtpSession
             {
                 "protocol_version" => Success(command, "2"),
                 "name" => Success(command, _engine.GtpName),
-                "version" => Success(command, "0.9.0"),
-                "list_commands" => Success(command, string.Join('\n', Commands)),
+                "version" => Success(command, "0.96"),
+                "list_commands" => Success(command, string.Join('\n', _commands)),
                 "known_command" => KnownCommand(command),
                 "boardsize" => BoardSize(command),
                 "clear_board" => ClearBoard(command),
@@ -126,9 +136,19 @@ public sealed class GtpSession
                 "zengtp_policy" => Policy(command),
                 "territory" => LegacyTerritory(command),
                 "zengtp_territory" => Territory(command),
+                "zengtp_config_version" when _configuration is not null => ConfigurationVersion(command),
+                "zengtp_config_schema" when _configuration is not null => ConfigurationSchema(command),
+                "zengtp_config_get" when _configuration is not null => ConfigurationGet(command),
+                "zengtp_config_set" when _configuration is not null => ConfigurationSet(command),
+                "zengtp_config_save" when _configuration is not null => ConfigurationSave(command),
+                "zengtp_config_reset" when _configuration is not null => ConfigurationReset(command),
                 "quit" => Quit(command),
                 _ => Error(command, "unknown command"),
             };
+        }
+        catch (ZenConfigurationException ex)
+        {
+            return Error(command, ZenConfigurationService.FormatError(ex));
         }
         catch (Exception ex) when (ex is ArgumentException or FormatException or InvalidOperationException)
         {
@@ -141,14 +161,14 @@ public sealed class GtpSession
         StopAnalysis();
     }
 
-    private static GtpExecutionResult KnownCommand(GtpCommand command)
+    private GtpExecutionResult KnownCommand(GtpCommand command)
     {
         if (command.Arguments.Count != 1)
         {
             return Error(command, "known_command requires one argument");
         }
 
-        var known = KnownCommands.Contains(command.Arguments[0].ToLowerInvariant());
+        var known = _knownCommands.Contains(command.Arguments[0].ToLowerInvariant());
         return Success(command, known ? "true" : "false");
     }
 
@@ -881,6 +901,75 @@ public sealed class GtpSession
         }
 
         return Success(command, string.Join('\n', _kataParameters.Keys.Order(StringComparer.Ordinal)));
+    }
+
+    private GtpExecutionResult ConfigurationVersion(GtpCommand command)
+    {
+        EnsureConfigurationArgumentCount(command, 0, "zengtp_config_version does not accept arguments");
+        return Success(command, _configuration!.GetVersionJson());
+    }
+
+    private GtpExecutionResult ConfigurationSchema(GtpCommand command)
+    {
+        EnsureConfigurationArgumentCount(command, 0, "zengtp_config_schema does not accept arguments");
+        lock (_engineLock)
+        {
+            return Success(command, _configuration!.GetSchemaJson());
+        }
+    }
+
+    private GtpExecutionResult ConfigurationGet(GtpCommand command)
+    {
+        EnsureConfigurationArgumentCount(command, 0, "zengtp_config_get does not accept arguments");
+        lock (_engineLock)
+        {
+            return Success(command, _configuration!.GetStateJson());
+        }
+    }
+
+    private GtpExecutionResult ConfigurationSet(GtpCommand command)
+    {
+        if (command.Arguments.Count == 0)
+        {
+            throw ZenConfigurationService.InvalidArguments("zengtp_config_set requires one JSON object");
+        }
+
+        var json = string.Join(' ', command.Arguments);
+        lock (_engineLock)
+        {
+            return Success(command, _configuration!.SetJson(json));
+        }
+    }
+
+    private GtpExecutionResult ConfigurationSave(GtpCommand command)
+    {
+        EnsureConfigurationArgumentCount(command, 0, "zengtp_config_save does not accept arguments");
+        lock (_engineLock)
+        {
+            return Success(command, _configuration!.SaveJson());
+        }
+    }
+
+    private GtpExecutionResult ConfigurationReset(GtpCommand command)
+    {
+        if (command.Arguments.Count > 1)
+        {
+            throw ZenConfigurationService.InvalidArguments("zengtp_config_reset accepts at most one target");
+        }
+
+        var target = command.Arguments.Count == 0 ? "saved" : command.Arguments[0];
+        lock (_engineLock)
+        {
+            return Success(command, _configuration!.ResetJson(target));
+        }
+    }
+
+    private static void EnsureConfigurationArgumentCount(GtpCommand command, int expected, string message)
+    {
+        if (command.Arguments.Count != expected)
+        {
+            throw ZenConfigurationService.InvalidArguments(message);
+        }
     }
 
     private GtpExecutionResult KataGetRules(GtpCommand command)
