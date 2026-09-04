@@ -1,8 +1,8 @@
 namespace ZenGTPX.Gtp;
 
-public sealed record GtpResponse(bool IsSuccess, string? Id, string Body)
+public sealed record GtpResponse(bool IsSuccess, string? Id, string Body, bool IsEndResponse = true)
 {
-    public static GtpResponse Success(string? id, string body = "") => new(true, id, body);
+    public static GtpResponse Success(string? id, string body = "", bool IsEndResponse = true) => new(true, id, body, IsEndResponse);
 
     public static GtpResponse Error(string? id, string body) => new(false, id, body);
 
@@ -16,6 +16,10 @@ public sealed record GtpResponse(bool IsSuccess, string? Id, string Body)
             ['\n', ..] => prefix + Body,
             _ => prefix + " " + Body,
         };
-        return firstLine + "\n\n";
+
+        if (IsEndResponse is true)
+            return firstLine + "\n\n";
+        else
+            return firstLine + "\n";
     }
 }

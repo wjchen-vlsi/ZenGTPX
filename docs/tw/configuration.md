@@ -115,6 +115,7 @@ resignThreshold = 0.1
 - `gtpName` 只控制 GTP `name` 回應。預設部署設定使用 `KataGo`，因為 LizzieYzy Next 會在 KataGo-compatible 路徑啟用多候選點分析顯示。
 - `gtpName = KataGo` 不代表 ZenGTPX 支援 KataGo `analysis` JSON protocol。
 - `tracePath` 會寫入原始 GTP trace，不會污染 stdout。相對路徑會從執行檔所在目錄解析。支援 token：`{timestamp}`、`{date}`、`{pid}`。若有設定 `ZENGTPX_TRACE_PATH`，環境變數仍會優先覆蓋此設定。
+- `zenTracePath` 會寫入經由 ZenGTPX 重導的 Zen.dll stdout。相對路徑會從執行檔所在目錄解析。支援 token：`{timestamp}`、`{date}`、`{pid}`。若有設定 `ZENGTPX_ZEN_TRACE_PATH`，環境變數仍會優先覆蓋此設定。
 - `time_settings` / `time_left` 會在支援時轉送到 Zen 原生時間 API；`time_settings` 也會更新 wrapper 的每手期限。
 - `final_score` 使用 ZenGTP.py 相容公式，依 Zen territory statistics 估算。`finalScoreRule = japanese` / `territory` 使用 territory scoring；`chinese` / `area` 使用 area scoring。
 - `final_status_list alive|dead|seki` 是相容性 stub，會回傳空清單；ZenGTPX 目前不提供可靠的死子判定。

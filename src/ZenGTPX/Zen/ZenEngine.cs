@@ -313,8 +313,9 @@ public sealed class ZenEngine : IGtpEngine, IDisposable
         var candidateCount = Math.Min(maxCandidates, 10);
         var zenColor = (int)color;
         _native.SetNextColor(zenColor);
+        var policy = _native.GetPolicyKnowledge();
         var moves = ThinkUntilAnalysisMoves(zenColor, candidateCount, cancellationToken);
-        return WithPolicyPriors(moves.Count > 0 ? moves : ReadAnalysisMoves(candidateCount));
+        return WithPolicyPriors(moves.Count > 0 ? moves : ReadAnalysisMoves(candidateCount), policy);
     }
 
     public void RunAnalysis(
@@ -338,6 +339,7 @@ public sealed class ZenEngine : IGtpEngine, IDisposable
         var candidateCount = Math.Min(maxCandidates, 10);
         var zenColor = (int)color;
         _native.SetNextColor(zenColor);
+        var policy = _native.GetPolicyKnowledge();
         _native.StartThinking(zenColor);
 
         try
@@ -349,20 +351,10 @@ public sealed class ZenEngine : IGtpEngine, IDisposable
                     break;
                 }
 
-                var moves = WithPolicyPriors(ReadAnalysisMoves(candidateCount));
+                var moves = WithPolicyPriors(ReadAnalysisMoves(candidateCount), policy);
                 if (moves.Count > 0)
                 {
                     onMoves(moves);
-                }
-
-                if (moves.Count > 0 && moves[0].Playouts >= _options.MaxSimulations)
-                {
-                    break;
-                }
-
-                if (!_native.IsThinking)
-                {
-                    break;
                 }
             }
         }
@@ -370,6 +362,8 @@ public sealed class ZenEngine : IGtpEngine, IDisposable
         {
             _native.StopThinking();
         }
+        Console.Out.Write("\n");
+        Console.Out.Flush();
     }
 
     public bool Undo(int count)
@@ -613,6 +607,7 @@ public sealed class ZenEngine : IGtpEngine, IDisposable
     {
         ZenTopMove topMove = default;
         var stopReason = "timeout";
+        var policy = _native.GetPolicyKnowledge();
         _native.StartThinking(zenColor);
 
         try
@@ -626,7 +621,7 @@ public sealed class ZenEngine : IGtpEngine, IDisposable
                     break;
                 }
 
-                var moves = WithPolicyPriors(ReadAnalysisMoves(candidateCount));
+                var moves = WithPolicyPriors(ReadAnalysisMoves(candidateCount), policy);
                 if (moves.Count > 0)
                 {
                     onMoves(moves);
@@ -732,14 +727,13 @@ public sealed class ZenEngine : IGtpEngine, IDisposable
         return moves;
     }
 
-    private IReadOnlyList<GtpAnalysisMove> WithPolicyPriors(IReadOnlyList<GtpAnalysisMove> moves)
+    private IReadOnlyList<GtpAnalysisMove> WithPolicyPriors(IReadOnlyList<GtpAnalysisMove> moves, int[,] policy)
     {
         if (moves.Count == 0 || _boardSize > 19)
         {
             return moves;
         }
 
-        var policy = _native.GetPolicyKnowledge();
         var rawValues = moves
             .Select(move => move.Move.Coordinate is { } coordinate
                 ? Math.Max(0, policy[coordinate.Y, coordinate.X])

@@ -13,6 +13,8 @@ if (startup is null)
 using var engine = startup.Value.Engine;
 var outputLock = new object();
 using var trace = CreateTraceWriter(startup.Value.Options, AppContext.BaseDirectory);
+using var zentrace = CreateZenTraceWriter(startup.Value.Options, AppContext.BaseDirectory);
+GtpBridgeIO.Initialize(zentrace);
 var configuration = new ZenConfigurationService(
     startup.Value.Options,
     engine.ApplyConfiguration,
@@ -124,6 +126,40 @@ static StreamWriter? CreateTraceWriter(ZenGtpOptions options, string baseDirecto
     catch (Exception ex)
     {
         Console.Error.WriteLine($"ZenGTPX trace disabled: {ex.Message}");
+        return null;
+    }
+}
+
+static StreamWriter? CreateZenTraceWriter(ZenGtpOptions options, string baseDirectory)
+{
+    var path = Environment.GetEnvironmentVariable("ZENGTPX_ZEN_TRACE_PATH");
+    if (string.IsNullOrWhiteSpace(path))
+    {
+        path = options.ZenTracePath;
+    }
+
+    if (string.IsNullOrWhiteSpace(path))
+    {
+        return null;
+    }
+
+    try
+    {
+        path = ExpandTracePath(path, baseDirectory);
+        var directory = Path.GetDirectoryName(path);
+        if (!string.IsNullOrEmpty(directory))
+        {
+            Directory.CreateDirectory(directory);
+        }
+
+        return new StreamWriter(new FileStream(path, FileMode.Append, FileAccess.Write, FileShare.ReadWrite))
+        {
+            AutoFlush = true,
+        };
+    }
+    catch (Exception ex)
+    {
+        Console.Error.WriteLine($"Zen.dll native trace disabled: {ex.Message}");
         return null;
     }
 }

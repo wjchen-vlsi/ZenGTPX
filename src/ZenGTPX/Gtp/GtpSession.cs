@@ -745,7 +745,7 @@ public sealed class GtpSession
         }
 
         StartAnalysisStream(color, FormatLzAnalysis, interval);
-        return Success(command, "");
+        return Success(command, "", IsEndResponse: false);
     }
 
     private GtpExecutionResult KataAnalyze(GtpCommand command)
@@ -789,7 +789,7 @@ public sealed class GtpSession
         }
 
         StartAnalysisStream(color, FormatKataAnalysis, interval);
-        return Success(command, "");
+        return Success(command, "", IsEndResponse: false);
     }
 
     private GtpExecutionResult LzGenMoveAnalyze(GtpCommand command)
@@ -802,13 +802,13 @@ public sealed class GtpSession
 
         if (_writeAnalysisOutput is not null)
         {
-            _writeAnalysisOutput(GtpResponse.Success(command.Id).Format());
+            _writeAnalysisOutput(GtpResponse.Success(command.Id, IsEndResponse: false).Format());
         }
 
         var move = GenerateMoveAnalyze(parsed.Color, parsed.Interval, FormatLzAnalysis);
         if (_writeAnalysisOutput is not null)
         {
-            _writeAnalysisOutput($"play {FormatMove(move)}\n");
+            _writeAnalysisOutput($"play {FormatMove(move)}\n\n");
             return new GtpExecutionResult(GtpResponse.Success(command.Id), ShouldQuit: false, SuppressResponse: true);
         }
 
@@ -825,13 +825,13 @@ public sealed class GtpSession
 
         if (_writeAnalysisOutput is not null)
         {
-            _writeAnalysisOutput(GtpResponse.Success(command.Id).Format());
+            _writeAnalysisOutput(GtpResponse.Success(command.Id, IsEndResponse: false).Format());
         }
 
         var move = GenerateMoveAnalyze(parsed.Color, parsed.Interval, FormatKataAnalysis);
         if (_writeAnalysisOutput is not null)
         {
-            _writeAnalysisOutput($"play {FormatMove(move)}\n");
+            _writeAnalysisOutput($"play {FormatMove(move)}\n\n");
             return new GtpExecutionResult(GtpResponse.Success(command.Id), ShouldQuit: false, SuppressResponse: true);
         }
 
@@ -848,13 +848,13 @@ public sealed class GtpSession
 
         if (_writeAnalysisOutput is not null)
         {
-            _writeAnalysisOutput(GtpResponse.Success(command.Id).Format());
+            _writeAnalysisOutput(GtpResponse.Success(command.Id, IsEndResponse: false).Format());
         }
 
         var move = GenerateMoveAnalyze(parsed.Color, parsed.Interval, FormatKataAnalysis);
         if (_writeAnalysisOutput is not null)
         {
-            _writeAnalysisOutput($"play {FormatMove(move)}\n");
+            _writeAnalysisOutput($"play {FormatMove(move)}\n\n");
             return new GtpExecutionResult(GtpResponse.Success(command.Id), ShouldQuit: false, SuppressResponse: true);
         }
 
@@ -1671,9 +1671,9 @@ public sealed class GtpSession
         };
     }
 
-    private static GtpExecutionResult Success(GtpCommand command, string body)
+    private static GtpExecutionResult Success(GtpCommand command, string body, bool IsEndResponse = true)
     {
-        return new GtpExecutionResult(GtpResponse.Success(command.Id, body), ShouldQuit: false);
+        return new GtpExecutionResult(GtpResponse.Success(command.Id, body, IsEndResponse), ShouldQuit: false);
     }
 
     private static GtpExecutionResult AnalysisSuccess(GtpCommand command, string analysisOutput)

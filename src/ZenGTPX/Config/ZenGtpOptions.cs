@@ -15,6 +15,8 @@ public sealed record ZenGtpOptions
 
     public string TracePath { get; init; } = "";
 
+    public string ZenTracePath { get; init; } = "";
+
     public int BoardSize { get; init; } = 19;
 
     public double Komi { get; init; } = 7.5;
@@ -229,6 +231,7 @@ public static class ZenGtpOptionsLoader
             "zendll" => options with { ZenDll = value },
             "gtpname" => options with { GtpName = value },
             "tracepath" => options with { TracePath = value },
+            "zentracepath" => options with { ZenTracePath = value },
             "boardsize" => options with { BoardSize = ParseInt(value, key, lineNumber) },
             "komi" => options with { Komi = ParseDouble(value, key, lineNumber) },
             "handicap" => options with { Handicap = ParseInt(value, key, lineNumber) },
@@ -255,6 +258,7 @@ public static class ZenGtpOptionsLoader
             ZenDll = GetArgumentValue(args, "--zenDll") ?? normalized.ZenDll,
             GtpName = GetArgumentValue(args, "--gtpName") ?? normalized.GtpName,
             TracePath = GetArgumentValue(args, "--tracePath") ?? normalized.TracePath,
+            ZenTracePath = GetArgumentValue(args, "--zenTracePath") ?? normalized.ZenTracePath,
             BoardSize = GetIntArgument(args, "--boardSize") ?? normalized.BoardSize,
             Komi = GetDoubleArgument(args, "--komi") ?? normalized.Komi,
             Handicap = GetIntArgument(args, "--handicap") ?? normalized.Handicap,
