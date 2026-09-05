@@ -9,7 +9,7 @@ ZenGTPX 0.96 的配置命令另見 [Configuration Protocol v1](./configuration-p
 
 ZenGTPX 支援第一版供 GUI 顯示候選點用的 GTP analysis commands：
 
-- `lz-analyze [interval]`
+- `lz-analyze [color] [interval]`
 - `kata-analyze [color] [interval]`
 - `analyze [color] [interval]`
 - `lz-genmove_analyze [color] [interval]`

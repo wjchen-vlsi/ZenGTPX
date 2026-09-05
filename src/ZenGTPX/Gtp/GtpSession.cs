@@ -713,15 +713,23 @@ public sealed class GtpSession
 
     private GtpExecutionResult LzAnalyze(GtpCommand command)
     {
-        if (command.Arguments.Count > 1)
+        if (command.Arguments.Count > 2)
         {
-            return Error(command, "lz-analyze accepts at most one interval argument");
+            return Error(command, "lz-analyze accepts optional color and optional interval argument");
+        }
+
+        var color = _board.NextColor;
+        var intervalIndex = 0;
+        if (command.Arguments.Count > 0 && TryParseColor(command.Arguments[0], out var explicitColor))
+        {
+            color = explicitColor;
+            intervalIndex = 1;
         }
 
         var interval = DefaultAnalysisIntervalCentiseconds;
-        if (command.Arguments.Count == 1)
+        if (command.Arguments.Count > intervalIndex)
         {
-            if (!TryParseInteger(command.Arguments[0], out interval))
+            if (!TryParseInteger(command.Arguments[intervalIndex], out interval))
             {
                 return Error(command, "lz-analyze interval must be an integer");
             }
@@ -732,7 +740,6 @@ public sealed class GtpSession
             }
         }
 
-        var color = _board.NextColor;
         if (_writeAnalysisOutput is null)
         {
             IReadOnlyList<GtpAnalysisMove> moves;

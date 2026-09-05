@@ -9,7 +9,7 @@ These commands are not part of GTP v2 and should not be treated as Lizzie or Kat
 
 ZenGTPX supports first-pass GTP analysis commands for GUI candidate display:
 
-- `lz-analyze [interval]`
+- `lz-analyze [color] [interval]`
 - `kata-analyze [color] [interval]`
 - `analyze [color] [interval]`
 - `lz-genmove_analyze [color] [interval]`
